@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .route-card {
+        transition: all 0.3s;
+        cursor: pointer;
+        border-width: 2px;
+    }
+    .route-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1)!important;
+    }
+    .route-card.selected {
+        border-color: #206bc4;
+        box-shadow: 0 5px 10px -3px rgba(32, 107, 196, 0.25)!important;
+    }
+    
+    .route-info-table {
+        font-size: 0.9rem;
+    }
+    
+    .map-container {
+        position: sticky;
+        top: 75px;
+        height: calc(100vh - 150px);
+        min-height: 400px;
+    }
+    
+    #map {
+        height: 100%;
+        width: 100%;
+    }
+    
+    .toll-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <div class="page-pretitle">
+                    Route Alternatives
+                </div>
+                <h2 class="page-title">
+                    Alternative Routes
+                </h2>
+            </div>
+            <div class="col-auto ms-auto">
+                <div class="btn-list">
+                    <a href="{{ url_for('route_bp.view', route_id=route.id) }}" class="btn btn-primary d-none d-sm-inline-block">
+                        <i class="ti ti-arrow-left me-1"></i>
+                        Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h3 class="card-title">Route Details</h3>
+            </div>
+            <div class="card-body">
+                <p>
+                    <strong><i class="ti ti-map-pin"></i> From:</strong> {{ route.from_address }}<br>
+                    <strong><i class="ti ti-map-pin-filled"></i> To:</strong> {{ route.to_address }}<br>
+                    <strong><i class="ti ti-car"></i> Vehicle:</strong> {{ route.vehicle_type|replace('_', ' ')|capitalize }}
+                </p>
+            </div>
+        </div>
+
+        <h3 class="mb-3">Available Routes</h3>
+        
+        {% if alternative_routes %}
+            {% for route_data in alternative_routes %}
+                <div class="card route-card mb-3 position-relative {% if loop.index == 1 %}selected{% endif %}" data-route-id="{{ route_data.id }}" onclick="selectRoute(this, {{ loop.index0 }})">
+                    {% if route_data.is_toll %}
+                    <div class="toll-badge">
+                        <span class="badge bg-purple">
+                            <i class="ti ti-toll me-1"></i> Toll
+                        </span>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-auto">
+                                <div class="text-center p-3 bg-primary-lt rounded-circle" style="width: 50px; height: 50px;">
+                                    <span class="h4 m-0">{{ loop.index }}</span>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <h4 class="card-title mb-1">
+                                    {{ route_data.summary|default('Route ' + loop.index|string) }}
+                                    {% if loop.index == 1 %}
+                                    <span class="badge bg-success ms-2">Fastest</span>
+                                    {% endif %}
+                                </h4>
+                                <div class="d-flex mt-2">
+                                    <div class="me-3">
+                                        <span class="text-muted d-block">Distance</span>
+                                        <strong>{{ route_data.distance }}</strong>
+                                    </div>
+                                    <div class="me-3">
+                                        <span class="text-muted d-block">Duration</span>
+                                        <strong>{{ route_data.duration }}</strong>
+                                    </div>
+                                    {% if route_data.adjusted_duration %}
+                                    <div>
+                                        <span class="text-muted d-block">Adjusted</span>
+                                        <strong>{{ route_data.adjusted_duration }}</strong>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if route_data.highways %}
+                        <div class="mt-3">
+                            <small class="text-muted">Major Highways:</small>
+                            <div>
+                                {% for highway in route_data.highways %}
+                                <span class="badge bg-blue-lt me-1">{{ highway }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="card border-warning">
+                <div class="card-body">
+                    <h3 class="card-title">No Alternative Routes</h3>
+                    <p class="text-muted">No alternative routes are available for this journey.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card map-container">
+            <div class="card-body p-0">
+                <div id="map"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initMap" async defer></script>
+<script>
+    let map;
+    let routePolylines = [];
+    let waypoints = [];
+    
+    const routes = {{ alternative_routes|tojson if alternative_routes else '[]' }};
+    
+    // Define route colors
+    const routeColors = ["#206bc4", "#4299e1", "#38b2ac", "#0694a2", "#047481"];
+    
+    function initMap() {
+        // Initialize the map
+        map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 10,
+            mapTypeId: 'roadmap'
+        });
+        
+        if (routes.length > 0) {
+            // Draw all routes
+            routes.forEach((route, index) => {
+                drawRoute(route, index === 0, index);
+            });
+            
+            // Set initial bounds to show the fastest route
+            if (waypoints.length > 0) {
+                selectRoute(document.querySelector('.route-card'), 0);
+            }
+        }
+    }
+    
+    function drawRoute(route, isSelected, index) {
+        const color = routeColors[index % routeColors.length];
+        
+        // Create path from polyline
+        const path = route.polyline.map(p => ({ lat: p[0], lng: p[1] }));
+        
+        // Create the polyline
+        const routePath = new google.maps.Polyline({
+            path: path,
+            geodesic: true,
+            strokeColor: color,
+            strokeOpacity: isSelected ? 1.0 : 0.5,
+            strokeWeight: isSelected ? 5 : 3
+        });
+        
+        // Add the polyline to the map
+        routePath.setMap(map);
+        
+        // Store polyline for later use
+        routePolylines.push(routePath);
+        
+        // Add start and end markers if this is the first route
+        if (index === 0) {
+            // Create bounds
+            const bounds = new google.maps.LatLngBounds();
+            
+            // Start marker
+            new google.maps.Marker({
+                position: path[0],
+                map: map,
+                icon: "/static/images/start-pin.png",
+                title: "Start"
+            });
+            
+            // End marker
+            new google.maps.Marker({
+                position: path[path.length - 1],
+                map: map,
+                icon: "/static/images/end-pin.png",
+                title: "End"
+            });
+            
+            // Add points to bounds
+            path.forEach(point => bounds.extend(point));
+            
+            // Fit map to bounds
+            map.fitBounds(bounds);
+        }
+        
+        // Add waypoint markers if available
+        if (route.waypoints && route.waypoints.length > 0) {
+            route.waypoints.forEach((waypoint, i) => {
+                const waypointMarker = new google.maps.Marker({
+                    position: { lat: waypoint.lat, lng: waypoint.lng },
+                    map: isSelected ? map : null,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        fillColor: color,
+                        fillOpacity: 0.8,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 1,
+                        scale: 7
+                    },
+                    title: waypoint.instruction || `Waypoint ${i+1}`
+                });
+                
+                // Store waypoint for later use
+                waypoints.push({
+                    marker: waypointMarker,
+                    routeIndex: index
+                });
+                
+                // Add info window with instructions
+                if (waypoint.instruction) {
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: `<div style="max-width: 200px;">${waypoint.instruction}</div>`
+                    });
+                    
+                    waypointMarker.addListener('click', () => {
+                        infoWindow.open(map, waypointMarker);
+                    });
+                }
+            });
+        }
+        
+        // Add toll gate markers if it's a toll route
+        if (route.is_toll) {
+            // Find approximate middle point of the route for toll icon
+            const middleIndex = Math.floor(path.length / 2);
+            const tollPosition = path[middleIndex];
+            
+            new google.maps.Marker({
+                position: tollPosition,
+                map: map,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: '#9C27B0',
+                    fillOpacity: 0.8,
+                    strokeColor: '#7B1FA2',
+                    strokeWeight: 1,
+                    scale: 8
+                },
+                title: 'Toll Route'
+            });
+        }
+    }
+    
+    function selectRoute(element, routeIndex) {
+        // Update UI - highlight selected card
+        document.querySelectorAll('.route-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        element.classList.add('selected');
+        
+        // Update polylines - highlight selected route
+        routePolylines.forEach((polyline, index) => {
+            if (index === routeIndex) {
+                polyline.setOptions({
+                    strokeOpacity: 1.0,
+                    strokeWeight: 5
+                });
+            } else {
+                polyline.setOptions({
+                    strokeOpacity: 0.5,
+                    strokeWeight: 3
+                });
+            }
+        });
+        
+        // Show/hide waypoint markers
+        waypoints.forEach(waypoint => {
+            if (waypoint.routeIndex === routeIndex) {
+                waypoint.marker.setMap(map);
+            } else {
+                waypoint.marker.setMap(null);
+            }
+        });
+        
+        // Create bounds to fit the selected route
+        const route = routes[routeIndex];
+        if (route && route.polyline) {
+            const bounds = new google.maps.LatLngBounds();
+            route.polyline.forEach(point => {
+                bounds.extend(new google.maps.LatLng(point[0], point[1]));
+            });
+            map.fitBounds(bounds);
+        }
+    }
+</script>
+{% endblock %}

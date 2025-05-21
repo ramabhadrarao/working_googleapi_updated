@@ -1,0 +1,112 @@
+<header class="navbar navbar-expand-md navbar-light d-print-none app-header">
+    <div class="container-xl">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <h1 class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
+            <a href="{{ url_for('main.index') }}">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Route Analytics" class="navbar-brand-image" height="32">
+                Route Analytics
+            </a>
+        </h1>
+        <div class="navbar-nav flex-row order-md-last">
+            {% if current_user.is_authenticated %}
+            <div class="nav-item dropdown">
+                <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown" aria-label="User menu">
+                    <div class="d-none d-xl-block ps-2">
+                        <div>{{ current_user.username }}</div>
+                        <div class="mt-1 small text-muted">{{ current_user.role|capitalize }}</div>
+                    </div>
+                    <span class="avatar avatar-sm ms-2">{{ current_user.username[0]|upper }}</span>
+                </a>
+                <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+                    <a href="{{ url_for('auth.profile') }}" class="dropdown-item">
+                        <i class="ti ti-user me-1"></i> Profile
+                    </a>
+                    <a href="{{ url_for('route_bp.list_routes') }}" class="dropdown-item">
+                        <i class="ti ti-route me-1"></i> My Routes
+                    </a>
+                    <a href="{{ url_for('report_bp.list_reports') }}" class="dropdown-item">
+                        <i class="ti ti-file-report me-1"></i> My Reports
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <a href="{{ url_for('auth.logout') }}" class="dropdown-item">
+                        <i class="ti ti-logout me-1"></i> Logout
+                    </a>
+                </div>
+            </div>
+            {% else %}
+            <div class="nav-item">
+                <a href="{{ url_for('auth.login') }}" class="nav-link">Login</a>
+            </div>
+            <div class="nav-item">
+                <a href="{{ url_for('auth.register') }}" class="nav-link">Register</a>
+            </div>
+            {% endif %}
+        </div>
+        <div class="collapse navbar-collapse" id="navbar-menu">
+            <div class="d-flex flex-column flex-md-row flex-fill align-items-stretch align-items-md-center">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.index') }}">
+                            <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                <i class="ti ti-home"></i>
+                            </span>
+                            <span class="nav-link-title">Home</span>
+                        </a>
+                    </li>
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('route_bp.index') }}">
+                            <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                <i class="ti ti-map"></i>
+                            </span>
+                            <span class="nav-link-title">New Route</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('route_bp.list_routes') }}">
+                            <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                <i class="ti ti-list"></i>
+                            </span>
+                            <span class="nav-link-title">My Routes</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('report_bp.list_reports') }}">
+                            <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                <i class="ti ti-file-text"></i>
+                            </span>
+                            <span class="nav-link-title">Reports</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.about') }}">
+                            <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                <i class="ti ti-info-circle"></i>
+                            </span>
+                            <span class="nav-link-title">About</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.help') }}">
+                            <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                <i class="ti ti-help"></i>
+                            </span>
+                            <span class="nav-link-title">Help</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.contact') }}">
+                            <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                <i class="ti ti-mail"></i>
+                            </span>
+                            <span class="nav-link-title">Contact</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</header>

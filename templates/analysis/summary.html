@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .summary-card {
+        transition: all 0.3s;
+    }
+    
+    .summary-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1)!important;
+    }
+    
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 600;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+    
+    .risk-high { color: #dc3545; }
+    .risk-medium { color: #fd7e14; }
+    .risk-low { color: #28a745; }
+    
+    .risk-bar-container {
+        height: 10px;
+        background-color: #e9ecef;
+        border-radius: 5px;
+        overflow: hidden;
+        margin-top: 5px;
+    }
+    
+    .risk-bar {
+        height: 100%;
+        float: left;
+    }
+    
+    .risk-bar.high { background-color: #dc3545; }
+    .risk-bar.medium { background-color: #fd7e14; }
+    .risk-bar.low { background-color: #28a745; }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <div class="page-pretitle">
+                    Analysis Results
+                </div>
+                <h2 class="page-title">
+                    Route Summary
+                </h2>
+            </div>
+            <div class="col-auto ms-auto">
+                <div class="btn-list">
+                    <a href="{{ url_for('route_bp.view', route_id=route.id) }}" class="btn btn-primary d-none d-sm-inline-block">
+                        <i class="ti ti-layout-dashboard me-1"></i>
+                        Full Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <h3 class="card-title">Route Details</h3>
+                    <div>
+                        <a href="{{ url_for('report_bp.generate', route_id=route.id, report_type='summary') }}" class="btn btn-primary btn-sm">
+                            <i class="ti ti-file-download me-1"></i> Download Summary PDF
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="ti ti-map-pin text-primary me-2" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <div class="text-muted">From</div>
+                                    <strong>{{ data.from }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="ti ti-map-pin-filled text-danger me-2" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <div class="text-muted">To</div>
+                                    <strong>{{ data.to }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="ti ti-ruler text-success me-2" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <div class="text-muted">Distance</div>
+                                    <strong>{{ data.distance }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="ti ti-clock text-info me-2" style="font-size: 1.5rem;"></i>
+                                <div>
+                                    <div class="text-muted">Duration</div>
+                                    <strong>{{ data.duration }}</strong>
+                                    {% if data.adjusted_duration %}
+                                        <div class="text-muted">
+                                            <small>Adjusted for {{ data.vehicle_type|replace('_', ' ')|capitalize }}: {{ data.adjusted_duration }}</small>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h4>Route Characteristics</h4>
+                <div class="row g-3 mb-4">
+                    <!-- Major Highways -->
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <i class="ti ti-road text-blue me-2" style="font-size: 1.25rem;"></i>
+                            <div>
+                                <div class="text-muted">Major Highways</div>
+                                <div>
+                                    {% if data.major_highways %}
+                                        {% for highway in data.major_highways %}
+                                            <span class="badge bg-blue-lt me-1">{{ highway }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted">No major highways</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Weather Conditions -->
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <i class="ti ti-cloud text-cyan me-2" style="font-size: 1.25rem;"></i>
+                            <div>
+                                <div class="text-muted">Weather Conditions</div>
+                                <div>
+                                    {% for w in data.weather[:2] %}
+                                        <span class="badge bg-azure-lt me-1">
+                                            {{ w.location }}: {{ w.temp }}°C, {{ w.description }}
+                                        </span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Toll Gates -->
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <i class="ti ti-toll text-purple me-2" style="font-size: 1.25rem;"></i>
+                            <div>
+                                <div class="text-muted">Toll Gates</div>
+                                <div>
+                                    {% if data.toll_gates and data.toll_gates|length > 0 %}
+                                        <span class="badge bg-purple-lt">{{ data.toll_gates|length }} toll point(s)</span>
+                                    {% else %}
+                                        <span class="text-muted">No toll gates</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bridges -->
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <i class="ti ti-bridge text-teal me-2" style="font-size: 1.25rem;"></i>
+                            <div>
+                                <div class="text-muted">Bridges</div>
+                                <div>
+                                    {% if data.bridges and data.bridges|length > 0 %}
+                                        <span class="badge bg-teal-lt">{{ data.bridges|length }} bridge(s)</span>
+                                    {% else %}
+                                        <span class="text-muted">No bridges</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Risk Analysis Summary -->
+                <h4>Risk Assessment</h4>
+                
+                <div class="mb-3">
+                    <div>
+                        <strong>Overall Risk Level: </strong>
+                        <span class="badge bg-{{ data.risk_summary.risk_color }}">{{ data.risk_summary.overall_risk }}</span>
+                    </div>
+                    
+                    <!-- Risk distribution bar -->
+                    <div class="risk-bar-container mt-2">
+                        {% if data.risk_summary.total_segments > 0 %}
+                            {% set high_percent = (data.risk_summary.high_count / data.risk_summary.total_segments * 100)|round %}
+                            {% set medium_percent = (data.risk_summary.medium_count / data.risk_summary.total_segments * 100)|round %}
+                            {% set low_percent = (data.risk_summary.low_count / data.risk_summary.total_segments * 100)|round %}
+                            
+                            <div class="risk-bar high" style="width: {{ high_percent }}%"></div>
+                            <div class="risk-bar medium" style="width: {{ medium_percent }}%"></div>
+                            <div class="risk-bar low" style="width: {{ low_percent }}%"></div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-1">
+                        <small class="text-danger">High: {{ data.risk_summary.high_count }}</small>
+                        <small class="text-warning">Medium: {{ data.risk_summary.medium_count }}</small>
+                        <small class="text-success">Low: {{ data.risk_summary.low_count }}</small>
+                    </div>
+                </div>
+                
+                <!-- Special features -->
+                <div class="alert alert-warning">
+                    <div class="d-flex align-items-center">
+                        <i class="ti ti-alert-triangle text-warning me-2" style="font-size: 1.5rem;"></i>
+                        <div>
+                            <div><strong>Special Attention Required</strong></div>
+                            <div>
+                                This route includes {{ data.special_features.sharp_turns_count }} sharp turns, including {{ data.special_features.blind_spots_count }} blind spots.
+                                {% if data.special_features.blind_spots_count > 0 %}
+                                    <a href="{{ url_for('route_bp.blind_spots', route_id=route.id) }}" class="ms-1 text-warning">View blind spots</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Key Metrics -->
+        <div class="row">
+            <div class="col-6">
+                <div class="card summary-card mb-3">
+                    <div class="card-body p-3 text-center">
+                        <div class="text-end text-red">
+                            <i class="ti ti-eye-off"></i>
+                        </div>
+                        <div class="stat-value text-danger">{{ data.special_features.blind_spots_count }}</div>
+                        <div class="stat-label">Blind Spots</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-6">
+                <div class="card summary-card mb-3">
+                    <div class="card-body p-3 text-center">
+                        <div class="text-end text-orange">
+                            <i class="ti ti-path-curve"></i>
+                        </div>
+                        <div class="stat-value text-warning">{{ data.special_features.sharp_turns_count }}</div>
+                        <div class="stat-label">Sharp Turns</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-6">
+                <div class="card summary-card mb-3">
+                    <div class="card-body p-3 text-center">
+                        <div class="text-end text-purple">
+                            <i class="ti ti-toll"></i>
+                        </div>
+                        <div class="stat-value text-purple">{{ data.special_features.toll_gates_count }}</div>
+                        <div class="stat-label">Toll Gates</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-6">
+                <div class="card summary-card mb-3">
+                    <div class="card-body p-3 text-center">
+                        <div class="text-end text-green">
+                            <i class="ti ti-bridge"></i>
+                        </div>
+                        <div class="stat-value text-teal">{{ data.special_features.bridges_count }}</div>
+                        <div class="stat-label">Bridges</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Safety Tips -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="ti ti-shield-check text-green me-2"></i>
+                    Safety Tips
+                </h3>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item px-0">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar bg-red-lt text-red me-3">
+                                <i class="ti ti-speedboat"></i>
+                            </div>
+                            <div>
+                                <strong>Reduce Speed</strong>
+                                <div class="text-muted">Slow down at sharp turns and blind spots</div>
+                            </div>
+                        </div>
+                    </li>
+                    
+                    <li class="list-group-item px-0">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar bg-green-lt text-green me-3">
+                                <i class="ti ti-user-check"></i>
+                            </div>
+                            <div>
+                                <strong>Stay Alert</strong>
+                                <div class="text-muted">Take breaks every 2 hours to avoid fatigue</div>
+                            </div>
+                        </div>
+                    </li>
+                    
+                    <li class="list-group-item px-0">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar bg-blue-lt text-blue me-3">
+                                <i class="ti ti-cloud-rain"></i>
+                            </div>
+                            <div>
+                                <strong>Weather Awareness</strong>
+                                <div class="text-muted">Check weather updates before and during your journey</div>
+                            </div>
+                        </div>
+                    </li>
+                    
+                    <li class="list-group-item px-0">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar bg-orange-lt text-orange me-3">
+                                <i class="ti ti-emergency-bed"></i>
+                            </div>
+                            <div>
+                                <strong>Emergency Kit</strong>
+                                <div class="text-muted">Keep a first aid kit and emergency supplies</div>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,479 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .pac-container {
+        z-index: 1051 !important;
+    }
+    
+    #from, #to {
+        background-position: 10px center;
+        background-repeat: no-repeat;
+        background-size: 20px;
+        padding-left: 40px;
+    }
+    
+    #from {
+        background-image: url('{{ url_for('static', filename='images/start-pin.png') }}');
+    }
+    
+    #to {
+        background-image: url('{{ url_for('static', filename='images/end-pin.png') }}');
+    }
+    
+    .input-type-toggle {
+        margin-bottom: 1.5rem;
+    }
+    
+    .coordinates-inputs {
+        display: none;
+    }
+    
+    .toggle-inputs:checked ~ .coordinates-inputs {
+        display: block;
+    }
+    
+    .toggle-inputs:checked ~ .address-inputs {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <h2 class="page-title">
+                    Route Analysis
+                </h2>
+                <div class="text-muted mt-1">
+                    Enter route details for comprehensive analysis
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title">Enter Route Details</h3>
+    </div>
+    <div class="card-body">
+        <form method="POST" class="needs-validation" novalidate>
+            {{ form.csrf_token }}
+            
+            <div class="row mb-3 input-type-toggle">
+                <div class="col-12">
+                    <div class="form-label">Input Type</div>
+                    <div class="form-selectgroup">
+                        <label class="form-selectgroup-item">
+                            {{ form.input_type(class="form-selectgroup-input toggle-inputs", id="input_type_address", value="address", checked=true) }}
+                            <span class="form-selectgroup-label">Use Address</span>
+                        </label>
+                        <label class="form-selectgroup-item">
+                            {{ form.input_type(class="form-selectgroup-input toggle-inputs", id="input_type_coords", value="coordinates") }}
+                            <span class="form-selectgroup-label">Use Coordinates</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row address-inputs">
+                <div class="col-md-5 mb-3">
+                    <label class="form-label required">From Address</label>
+                    {{ form.from_address(class="form-control", id="from", placeholder="Starting location", required=true) }}
+                    {% if form.from_address.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.from_address.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-5 mb-3">
+                    <label class="form-label required">To Address</label>
+                    {{ form.to_address(class="form-control", id="to", placeholder="Destination", required=true) }}
+                    {% if form.to_address.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.to_address.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="row coordinates-inputs">
+                <div class="col-md-5 mb-3">
+                    <div class="row">
+                        <div class="col">
+                            <label class="form-label required">From Latitude</label>
+                            {{ form.from_lat(class="form-control", placeholder="e.g. 40.7128", step="any") }}
+                            {% if form.from_lat.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.from_lat.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col">
+                            <label class="form-label required">From Longitude</label>
+                            {{ form.from_lng(class="form-control", placeholder="e.g. -74.0060", step="any") }}
+                            {% if form.from_lng.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.from_lng.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-5 mb-3">
+                    <div class="row">
+                        <div class="col">
+                            <label class="form-label required">To Latitude</label>
+                            {{ form.to_lat(class="form-control", placeholder="e.g. 37.7749", step="any") }}
+                            {% if form.to_lat.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.to_lat.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col">
+                            <label class="form-label required">To Longitude</label>
+                            {{ form.to_lng(class="form-control", placeholder="e.g. -122.4194", step="any") }}
+                            {% if form.to_lng.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.to_lng.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Vehicle Type</label>
+                    {{ form.vehicle_type(class="form-select") }}
+                </div>
+                
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" type="submit">
+                        <i class="ti ti-route me-1"></i> Analyze Route
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if map_data %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title">Route Preview</h3>
+    </div>
+    <div class="card-body p-0">
+        <div id="map"></div>
+    </div>
+</div>
+{% else %}
+<div class="card card-body text-center p-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <img src="{{ url_for('static', filename='images/map-placeholder.png') }}" alt="Map Placeholder" class="img-fluid mb-4" style="max-height: 300px;">
+            <h3 class="mb-3">Enter your route details above</h3>
+            <p class="text-muted">
+                The Route Analytics system will analyze your journey for safety, compliance, and efficiency, providing you with a comprehensive report and recommendations.
+            </p>
+            <div class="row mt-4">
+                <div class="col-md-4">
+                    <div class="card card-sm">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <span class="text-primary" style="font-size: 2rem;">
+                                    <i class="ti ti-alert-triangle"></i>
+                                </span>
+                                <div class="ms-3">
+                                    <h4 class="m-0">Risk Analysis</h4>
+                                    <small class="text-muted">Safety evaluation</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card card-sm">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <span class="text-success" style="font-size: 2rem;">
+                                    <i class="ti ti-license"></i>
+                                </span>
+                                <div class="ms-3">
+                                    <h4 class="m-0">Compliance</h4>
+                                    <small class="text-muted">Regulatory checks</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card card-sm">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <span class="text-danger" style="font-size: 2rem;">
+                                    <i class="ti ti-ambulance"></i>
+                                </span>
+                                <div class="ms-3">
+                                    <h4 class="m-0">Emergency</h4>
+                                    <small class="text-muted">Response planning</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if api_key %}
+<!-- Google Maps JS API with Places Library -->
+<script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&libraries=places&callback=initMap" async defer></script>
+<script>
+    // Function to initialize map and autocomplete
+    function initMap() {
+        // Initialize autocomplete
+        initAutocomplete();
+        
+        {% if map_data %}
+        // Initialize the map
+        const path = {{ map_data.polyline|tojson }};
+        const map = new google.maps.Map(document.getElementById("map"), {
+            zoom: 10,
+            center: { lat: path[0][0], lng: path[0][1] },
+            mapTypeId: 'roadmap',
+            mapTypeControl: true,
+            mapTypeControlOptions: {
+                style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                position: google.maps.ControlPosition.TOP_RIGHT
+            }
+        });
+
+        // Draw route path
+        const routePath = new google.maps.Polyline({
+            path: path.map(p => ({ lat: p[0], lng: p[1] })),
+            geodesic: true,
+            strokeColor: "#1E88E5",
+            strokeOpacity: 1.0,
+            strokeWeight: 4
+        });
+        
+        routePath.setMap(map);
+
+        // Add markers for sharp turns
+        const turns = {{ map_data.sharp_turns|tojson }};
+        turns.forEach(t => {
+            const marker = new google.maps.Marker({
+                position: { lat: t.lat, lng: t.lng },
+                map: map,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: '#FFC107',
+                    fillOpacity: 0.8,
+                    strokeColor: '#FF9800',
+                    strokeWeight: 1,
+                    scale: 8
+                },
+                title: `Sharp Turn: ${t.angle}°`
+            });
+            
+            // Add a click event for the marker
+            google.maps.event.addListener(marker, 'click', function() {
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `<div><strong>Sharp Turn</strong><br>Angle: ${t.angle}°<br>Coordinate: ${t.lat.toFixed(4)}, ${t.lng.toFixed(4)}</div>`
+                });
+                infoWindow.open(map, marker);
+            });
+        });
+        
+        // Add markers for toll gates
+        const tollGates = {{ map_data.toll_gates|tojson if map_data.toll_gates else '[]' }};
+        tollGates.forEach(toll => {
+            const marker = new google.maps.Marker({
+                position: { lat: toll.lat, lng: toll.lng },
+                map: map,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: '#9C27B0',
+                    fillOpacity: 0.8,
+                    strokeColor: '#7B1FA2',
+                    strokeWeight: 1,
+                    scale: 8
+                },
+                title: `Toll Gate`
+            });
+            
+            // Add a click event for the marker
+            google.maps.event.addListener(marker, 'click', function() {
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `<div><strong>Toll Gate</strong><br>${toll.name || ''}</div>`
+                });
+                infoWindow.open(map, marker);
+            });
+        });
+        
+        // Add markers for bridges
+        const bridges = {{ map_data.bridges|tojson if map_data.bridges else '[]' }};
+        bridges.forEach(bridge => {
+            const marker = new google.maps.Marker({
+                position: { lat: bridge.lat, lng: bridge.lng },
+                map: map,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: '#4CAF50',
+                    fillOpacity: 0.8,
+                    strokeColor: '#388E3C',
+                    strokeWeight: 1,
+                    scale: 8
+                },
+                title: `Bridge`
+            });
+            
+            // Add a click event for the marker
+            google.maps.event.addListener(marker, 'click', function() {
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `<div><strong>Bridge</strong><br>${bridge.name || ''}</div>`
+                });
+                infoWindow.open(map, marker);
+            });
+        });
+        
+        // Add start and end markers
+        if (path.length > 0) {
+            // Start marker
+            new google.maps.Marker({
+                position: { lat: path[0][0], lng: path[0][1] },
+                map: map,
+                icon: "{{ url_for('static', filename='images/start-pin.png') }}",
+                title: "Start"
+            });
+            
+            // End marker
+            new google.maps.Marker({
+                position: { lat: path[path.length - 1][0], lng: path[path.length - 1][1] },
+                map: map,
+                icon: "{{ url_for('static', filename='images/end-pin.png') }}",
+                title: "End"
+            });
+        }
+        
+        // Draw risk segments if available
+        {% if map_data.risk_segments %}
+            // Draw risk-colored polylines for each segment
+            {{ map_data.risk_segments|tojson }}.forEach(segment => {
+                const segmentPath = segment.path.map(p => ({ lat: p.lat, lng: p.lng }));
+                
+                const routePath = new google.maps.Polyline({
+                    path: segmentPath,
+                    geodesic: true,
+                    strokeColor: segment.color,
+                    strokeOpacity: 1.0,
+                    strokeWeight: 5
+                });
+                
+                routePath.setMap(map);
+                
+                // Add a tooltip on click
+                google.maps.event.addListener(routePath, 'click', function(event) {
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: `<div><strong>Risk Level: ${segment.risk_level}</strong><br>Risk Score: ${segment.risk_score.toFixed(1)}</div>`,
+                        position: event.latLng
+                    });
+                    infoWindow.open(map);
+                });
+            });
+        {% endif %}
+        {% endif %}
+    }
+    
+    // Function to initialize autocomplete
+    function initAutocomplete() {
+        // Create the autocomplete objects for the address input fields
+        const fromInput = document.getElementById("from");
+        const toInput = document.getElementById("to");
+        
+        if (fromInput && toInput) {
+            // Options for the autocomplete
+            const options = {
+                types: ['geocode', 'establishment'], // This allows for both addresses and places
+                fields: ['formatted_address', 'geometry', 'name']
+            };
+            
+            // Initialize autocomplete for both inputs
+            const fromAutocomplete = new google.maps.places.Autocomplete(fromInput, options);
+            const toAutocomplete = new google.maps.places.Autocomplete(toInput, options);
+            
+            // Optional: Add listeners for when a place is selected
+            fromAutocomplete.addListener('place_changed', function() {
+                const place = fromAutocomplete.getPlace();
+                console.log("From location selected:", place.formatted_address);
+            });
+            
+            toAutocomplete.addListener('place_changed', function() {
+                const place = toAutocomplete.getPlace();
+                console.log("To location selected:", place.formatted_address);
+            });
+        }
+    }
+</script>
+{% endif %}
+
+<script>
+    // Handle input type toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const addressRadio = document.getElementById('input_type_address');
+        const coordsRadio = document.getElementById('input_type_coords');
+        
+        if (addressRadio && coordsRadio) {
+            addressRadio.addEventListener('change', function() {
+                toggleInputType();
+            });
+            
+            coordsRadio.addEventListener('change', function() {
+                toggleInputType();
+            });
+            
+            // Initialize visibility based on current selection
+            toggleInputType();
+        }
+        
+        function toggleInputType() {
+            const addressInputs = document.querySelector('.address-inputs');
+            const coordsInputs = document.querySelector('.coordinates-inputs');
+            
+            if (addressRadio.checked) {
+                addressInputs.style.display = 'flex';
+                coordsInputs.style.display = 'none';
+            } else {
+                addressInputs.style.display = 'none';
+                coordsInputs.style.display = 'flex';
+            }
+        }
+    });
+</script>
+{% endblock %}

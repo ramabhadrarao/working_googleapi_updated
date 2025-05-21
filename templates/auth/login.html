@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-tight py-4">
+    <div class="text-center mb-4">
+        <a href="{{ url_for('main.index') }}">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" height="60" alt="Route Analytics">
+        </a>
+    </div>
+    
+    <div class="card card-md">
+        <div class="card-body">
+            <h2 class="card-title text-center mb-4">Login to your account</h2>
+            
+            <form method="POST" action="{{ url_for('auth.login') }}">
+                {{ form.csrf_token }}
+                
+                <div class="mb-3">
+                    <label class="form-label">{{ form.email.label }}</label>
+                    {{ form.email(class="form-control", placeholder="your@email.com") }}
+                    
+                    {% if form.email.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.email.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">{{ form.password.label }}</label>
+                    {{ form.password(class="form-control", placeholder="Password") }}
+                    
+                    {% if form.password.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.password.errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-check">
+                        {{ form.remember_me(class="form-check-input") }}
+                        <span class="form-check-label">{{ form.remember_me.label }}</span>
+                    </label>
+                </div>
+                
+                <div class="form-footer">
+                    {{ form.submit(class="btn btn-primary w-100") }}
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="text-center text-muted mt-3">
+        Don't have account yet? <a href="{{ url_for('auth.register') }}" tabindex="-1">Sign up</a>
+    </div>
+</div>
+{% endblock %}

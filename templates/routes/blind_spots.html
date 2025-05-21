@@ -1,0 +1,445 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .street-view-container {
+        height: 400px;
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    
+    .blind-spot-card {
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+    
+    .blind-spot-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1)!important;
+    }
+    
+    .blind-spot-card.selected {
+        border-color: #206bc4;
+        box-shadow: 0 5px 10px -3px rgba(32, 107, 196, 0.25)!important;
+    }
+    
+    .angle-indicator {
+        width: 50px;
+        height: 50px;
+        position: relative;
+    }
+    
+    .angle-arrow {
+        position: absolute;
+        top: 25px;
+        left: 25px;
+        width: 30px;
+        height: 2px;
+        background-color: #ff6b6b;
+        transform-origin: 0 0;
+    }
+    
+    .angle-arrow:after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: -3px;
+        width: 0;
+        height: 0;
+        border-style: solid;
+        border-width: 4px 0 4px 6px;
+        border-color: transparent transparent transparent #ff6b6b;
+    }
+    
+    .map-legend {
+        background: white;
+        padding: 10px;
+        margin: 10px;
+        border-radius: 3px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    .map-legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+    
+    .map-legend-color {
+        width: 20px;
+        height: 20px;
+        margin-right: 5px;
+        border-radius: 50%;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <div class="page-pretitle">
+                    Safety Analysis
+                </div>
+                <h2 class="page-title">
+                    Blind Spots (High-Angle Turns)
+                </h2>
+            </div>
+            <div class="col-auto ms-auto">
+                <div class="btn-list">
+                    <a href="{{ url_for('route_bp.view', route_id=route.id) }}" class="btn btn-primary d-none d-sm-inline-block">
+                        <i class="ti ti-arrow-left me-1"></i>
+                        Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">Street View</h3>
+                <div class="card-actions">
+                    <a href="#" class="btn btn-outline-primary btn-sm" onclick="toggleFullView()">
+                        <i class="ti ti-arrows-maximize"></i> Toggle Full View
+                    </a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div id="street-view" class="street-view-container"></div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">Route Map with Blind Spots</h3>
+            </div>
+            <div class="card-body p-0">
+                <div id="map" style="height: 400px; width: 100%;"></div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">Safety Recommendations</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <div class="d-flex">
+                        <div>
+                            <i class="ti ti-alert-triangle text-warning" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h4 class="alert-title">Exercise caution at blind spots</h4>
+                            <div class="text-muted">Blind spots are sharp turns with angles greater than 70°, which may limit visibility and require special attention.</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h4>Recommended Actions:</h4>
+                <ul class="list-group mb-3">
+                    <li class="list-group-item">
+                        <i class="ti ti-speedboat text-danger me-2"></i> Reduce speed well before approaching these turns
+                    </li>
+                    <li class="list-group-item">
+                        <i class="ti ti-bulb text-warning me-2"></i> Use headlights to signal your approach, even during daytime
+                    </li>
+                    <li class="list-group-item">
+                        <i class="ti ti-steering-wheel text-primary me-2"></i> Keep both hands on the steering wheel while navigating these turns
+                    </li>
+                    <li class="list-group-item">
+                        <i class="ti ti-car text-success me-2"></i> Maintain proper lane position through the turn
+                    </li>
+                    <li class="list-group-item">
+                        <i class="ti ti-alert-circle text-info me-2"></i> Be alert for oncoming traffic that might cut the corner
+                    </li>
+                </ul>
+                
+                <div class="alert alert-info">
+                    <i class="ti ti-info-circle me-1"></i> Driver assistance systems like blind spot monitoring may not be effective at sharp turns. Always rely on visual checks.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">Blind Spots List</h3>
+                <div class="card-subtitle">
+                    Click on any blind spot to view in Street View
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for spot in blind_spots %}
+                        <div class="blind-spot-card card p-3 mb-2 {% if loop.index == 1 %}selected{% endif %}" 
+                             onclick="showBlindSpot({{ spot.lat }}, {{ spot.lng }}, {{ spot.angle }}, this)">
+                            <div class="d-flex align-items-center">
+                                <div class="angle-indicator me-3">
+                                    <div class="angle-arrow" style="transform: rotate({{ spot.angle / 2 }}deg);"></div>
+                                </div>
+                                <div>
+                                    <h4 class="mb-0">Blind Spot #{{ loop.index }}</h4>
+                                    <div class="text-muted">Angle: <span class="text-danger">{{ spot.angle }}°</span></div>
+                                    <small>{{ spot.lat|round(5) }}, {{ spot.lng|round(5) }}</small>
+                                </div>
+                                <div class="ms-auto">
+                                    <span class="badge bg-danger py-2 px-3">
+                                        <i class="ti ti-view-360 me-1"></i>
+                                        {{ spot.angle }}°
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Angle Severity Guide</h3>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge bg-success px-3 py-2 me-2">40-50°</span>
+                    <div>Moderate turn - Exercise normal caution</div>
+                </div>
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge bg-warning px-3 py-2 me-2">50-70°</span>
+                    <div>Sharp turn - Reduce speed</div>
+                </div>
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge bg-danger px-3 py-2 me-2">70°+</span>
+                    <div>Blind spot - Extreme caution required</div>
+                </div>
+                
+                <div class="alert alert-warning mt-3">
+                    <i class="ti ti-truck me-1"></i> For heavy vehicles, all turns over 50° should be treated as blind spots.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initMap" async defer></script>
+<script>
+    let map;
+    let streetViewService;
+    let streetViewPanorama;
+    let markers = [];
+    let blindSpotMarkers = [];
+    
+    const polyline = {{ polyline|tojson }};
+    const blindSpots = {{ blind_spots|tojson }};
+    
+    function initMap() {
+        // Initialize Street View service
+        streetViewService = new google.maps.StreetViewService();
+        
+        // Initialize Street View panorama
+        streetViewPanorama = new google.maps.StreetViewPanorama(
+            document.getElementById('street-view'),
+            {
+                pov: { heading: 0, pitch: 0 },
+                zoom: 1,
+                visible: true,
+                motionTracking: false,
+                motionTrackingControl: false
+            }
+        );
+        
+        // Initialize map
+        map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 10,
+            mapTypeId: 'roadmap'
+        });
+        
+        // Draw route polyline
+        const path = polyline.map(p => ({ lat: p[0], lng: p[1] }));
+        const routePath = new google.maps.Polyline({
+            path: path,
+            geodesic: true,
+            strokeColor: '#1E88E5',
+            strokeOpacity: 1.0,
+            strokeWeight: 4
+        });
+        
+        routePath.setMap(map);
+        
+        // Create bounds to fit the route
+        const bounds = new google.maps.LatLngBounds();
+        path.forEach(point => bounds.extend(point));
+        
+        // Add markers for blind spots
+        blindSpots.forEach(spot => {
+            const marker = new google.maps.Marker({
+                position: { lat: spot.lat, lng: spot.lng },
+                map: map,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: '#DC3545',
+                    fillOpacity: 0.8,
+                    strokeColor: '#FFF',
+                    strokeWeight: 1,
+                    scale: 10
+                },
+                title: `Blind Spot: ${spot.angle}°`
+            });
+            
+            // Add click listener
+            marker.addListener('click', () => {
+                showStreetView(spot.lat, spot.lng, spot.angle);
+                
+                // Find and highlight the corresponding card
+                const cards = document.querySelectorAll('.blind-spot-card');
+                cards.forEach(card => card.classList.remove('selected'));
+                
+                // Find the index of this spot in the blindSpots array
+                const index = blindSpots.findIndex(b => 
+                    b.lat === spot.lat && b.lng === spot.lng && b.angle === spot.angle);
+                
+                if (index >= 0 && index < cards.length) {
+                    cards[index].classList.add('selected');
+                    cards[index].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+            
+            // Add info window
+            const infoWindow = new google.maps.InfoWindow({
+                content: `<div><strong>Blind Spot</strong><br>Angle: ${spot.angle}°</div>`
+            });
+            
+            marker.addListener('mouseover', () => {
+                infoWindow.open(map, marker);
+            });
+            
+            marker.addListener('mouseout', () => {
+                infoWindow.close();
+            });
+            
+            blindSpotMarkers.push(marker);
+            bounds.extend(marker.getPosition());
+        });
+        
+        // Add start and end markers
+        if (path.length > 0) {
+            // Start marker
+            new google.maps.Marker({
+                position: path[0],
+                map: map,
+                icon: "/static/images/start-pin.png",
+                title: "Start"
+            });
+            
+            // End marker
+            new google.maps.Marker({
+                position: path[path.length - 1],
+                map: map,
+                icon: "/static/images/end-pin.png",
+                title: "End"
+            });
+        }
+        
+        // Add map legend
+        addMapLegend();
+        
+        // Fit map to bounds
+        map.fitBounds(bounds);
+        
+        // Show the first blind spot by default
+        if (blindSpots.length > 0) {
+            const firstSpot = blindSpots[0];
+            showStreetView(firstSpot.lat, firstSpot.lng, firstSpot.angle);
+        }
+    }
+    
+    function addMapLegend() {
+        const legend = document.createElement('div');
+        legend.className = 'map-legend';
+        
+        legend.innerHTML = `
+            <div><strong>Map Legend</strong></div>
+            <div class="map-legend-item">
+                <div class="map-legend-color" style="background-color: #1E88E5;"></div>
+                <div>Route</div>
+            </div>
+            <div class="map-legend-item">
+                <div class="map-legend-color" style="background-color: #DC3545;"></div>
+                <div>Blind Spot</div>
+            </div>
+        `;
+        
+        map.controls[google.maps.ControlPosition.TOP_RIGHT].push(legend);
+    }
+    
+    function showBlindSpot(lat, lng, angle, element) {
+        // Update UI - highlight selected card
+        document.querySelectorAll('.blind-spot-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        element.classList.add('selected');
+        
+        // Show street view
+        showStreetView(lat, lng, angle);
+        
+        // Center map on blind spot
+        map.panTo({lat: lat, lng: lng});
+        map.setZoom(17);
+    }
+    
+    function showStreetView(lat, lng, angle) {
+        const location = new google.maps.LatLng(lat, lng);
+        
+        // Try to find street view within 50 meters
+        streetViewService.getPanorama({ location: location, radius: 50 }, (data, status) => {
+            if (status === google.maps.StreetViewStatus.OK) {
+                // Calculate heading based on the route direction
+                const heading = calculateHeading(lat, lng, angle);
+                
+                // Set street view
+                streetViewPanorama.setPosition(data.location.latLng);
+                streetViewPanorama.setPov({
+                    heading: heading,
+                    pitch: 0
+                });
+            } else {
+                // No street view available
+                document.getElementById('street-view').innerHTML = `
+                    <div class="d-flex justify-content-center align-items-center h-100 bg-light">
+                        <div class="text-center">
+                            <i class="ti ti-photo-off" style="font-size: 3rem; opacity: 0.5;"></i>
+                            <h4 class="mt-3">Street View not available for this location</h4>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+    }
+    
+    function calculateHeading(lat, lng, angle) {
+        // Simple calculation - point in the direction of the angle
+        // In a real implementation, you would calculate this based on the route direction
+        return angle;
+    }
+    
+    function toggleFullView() {
+        const container = document.getElementById('street-view');
+        
+        if (container.style.height === '600px') {
+            container.style.height = '400px';
+        } else {
+            container.style.height = '600px';
+        }
+    }
+</script>
+{% endblock %}

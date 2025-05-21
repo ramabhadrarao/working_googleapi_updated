@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Help & Documentation</h3>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="list-group mb-4">
+                    <a href="#getting-started" class="list-group-item list-group-item-action">Getting Started</a>
+                    <a href="#route-analysis" class="list-group-item list-group-item-action">Route Analysis</a>
+                    <a href="#risk-assessment" class="list-group-item list-group-item-action">Risk Assessment</a>
+                    <a href="#compliance" class="list-group-item list-group-item-action">Regulatory Compliance</a>
+                    <a href="#emergency" class="list-group-item list-group-item-action">Emergency Preparedness</a>
+                    <a href="#environmental" class="list-group-item list-group-item-action">Environmental Analysis</a>
+                    <a href="#reports" class="list-group-item list-group-item-action">Reports & PDF Generation</a>
+                    <a href="#faq" class="list-group-item list-group-item-action">FAQ</a>
+                </div>
+            </div>
+            
+            <div class="col-md-9">
+                <section id="getting-started" class="mb-5">
+                    <h4>Getting Started</h4>
+                    <div class="card">
+                        <div class="card-body">
+                            <h5>Account Creation</h5>
+                            <p>
+                                To use Route Analytics, you'll need to create an account. Click the "Register" button in the navigation bar and fill out the registration form.
+                            </p>
+                            
+                            <h5 class="mt-3">Creating Your First Route</h5>
+                            <p>
+                                After logging in, click on "New Route" in the navigation bar. You can enter addresses or coordinates to define your route. Select your vehicle type and click "Analyze Route" to get started.
+                            </p>
+                            
+                            <h5 class="mt-3">Navigating the Dashboard</h5>
+                            <p>
+                                The route dashboard provides a comprehensive overview of your route analysis. Use the tabs to switch between different analysis categories:
+                            </p>
+                            <ul>
+                                <li>Risk Analysis</li>
+                                <li>Regulatory Compliance</li>
+                                <li>Emergency Preparedness</li>
+                                <li>Environmental Analysis</li>
+                                <li>Amenities & POIs</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="route-analysis" class="mb-5">
+                    <h4>Route Analysis</h4>
+                    <div class="card">
+                        <div class="card-body">
+                            <h5>Address Input</h5>
+                            <p>
+                                You can enter starting and destination addresses in the text fields. The autocomplete feature will help you find specific locations.
+                            </p>
+                            
+                            <h5 class="mt-3">Coordinate Input</h5>
+                            <p>
+                                For precise location input, switch to coordinate mode and enter latitude and longitude values for your starting point and destination.
+                            </p>
+                            
+                            <h5 class="mt-3">Vehicle Type Selection</h5>
+                            <p>
+                                Choose your vehicle type from the dropdown menu. This selection affects various aspects of the analysis, including:
+                            </p>
+                            <ul>
+                                <li>Adjusted travel time calculations</li>
+                                <li>Vehicle-specific compliance requirements</li>
+                                <li>Risk assessment considerations</li>
+                                <li>Environmental impact calculations</li>
+                            </ul>
+                            
+                            <h5 class="mt-3">Alternative Routes</h5>
+                            <p>
+                                The system automatically analyzes multiple route options. You can compare these alternatives by clicking on the "Alternative Routes" button in the dashboard.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="risk-assessment" class="mb-5">
+                    <h4>Risk Assessment</h4>
+                    <div class="card">
+                        <div class="card-body">
+                            <h5>Risk Factors</h5>
+                            <p>
+                                The system evaluates several risk factors along your route:
+                            </p>
+                            <ul>
+                                <li>Sharp turns and blind spots</li>
+                                <li>Elevation changes and steep gradients</li>
+                                <li>Weather conditions</li>
+                                <li>Road quality</li>
+                                <li>Terrain type (urban, rural, etc.)</li>
+                            </ul>
+                            
+                            <h5 class="mt-3">Risk Visualization</h5>
+                            <p>
+                                Risk levels are color-coded on the route map:
+                            </p>
+                            <ul>
+                                <li><span class="badge bg-danger">Red</span> - High risk segments</li>
+                                <li><span class="badge bg-warning">Orange</span> - Medium risk segments</li>
+                                <li><span class="badge bg-success">Green</span> - Low risk segments</li>
+                            </ul>
+                            
+                            <h5 class="mt-3">Blind Spots Analysis</h5>
+                            <p>
+                                Detailed analysis of blind spots (turns with angles > 70°) is available through the "Blind Spots" view. This includes street view images where available.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Additional sections would go here -->
+                
+                <section id="faq" class="mb-5">
+                    <h4>Frequently Asked Questions</h4>
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="accordion" id="faqAccordion">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="faqHeading1">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse1" aria-expanded="true" aria-controls="faqCollapse1">
+                                            How accurate is the route analysis?
+                                        </button>
+                                    </h2>
+                                    <div id="faqCollapse1" class="accordion-collapse collapse show" aria-labelledby="faqHeading1" data-bs-parent="#faqAccordion">
+                                        <div class="accordion-body">
+                                            Our route analysis relies on data from multiple sources, including Google Maps API, OpenWeatherMap, and our proprietary risk assessment algorithms. While we strive for high accuracy, actual conditions may vary. Always use professional judgment and follow official road rules and regulations.
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="faqHeading2">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse2" aria-expanded="false" aria-controls="faqCollapse2">
+                                            Can I save multiple routes?
+                                        </button>
+                                    </h2>
+                                    <div id="faqCollapse2" class="accordion-collapse collapse" aria-labelledby="faqHeading2" data-bs-parent="#faqAccordion">
+                                        <div class="accordion-body">
+                                            Yes, you can save and analyze multiple routes. All your routes are saved automatically and can be accessed from the "My Routes" section in the navigation menu.
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="faqHeading3">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse3" aria-expanded="false" aria-controls="faqCollapse3">
+                                            How do I generate PDF reports?
+                                        </button>
+                                    </h2>
+                                    <div id="faqCollapse3" class="accordion-collapse collapse" aria-labelledby="faqHeading3" data-bs-parent="#faqAccordion">
+                                        <div class="accordion-body">
+                                            PDF reports can be generated from the route dashboard. There are three types of reports available:
+                                            <ul>
+                                                <li>Full Report - Comprehensive analysis of all aspects</li>
+                                                <li>Summary Report - Brief overview of key findings</li>
+                                                <li>Driver Briefing - Essential information for drivers</li>
+                                            </ul>
+                                            Click the "Download PDF Report" button to generate your preferred report type.
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Additional FAQ items would go here -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

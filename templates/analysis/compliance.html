@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Regulatory Compliance Analysis</h3>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h4>Route Details</h4>
+                <p>
+                    <strong>From:</strong> {{ route.from_address }}<br>
+                    <strong>To:</strong> {{ route.to_address }}<br>
+                    <strong>Distance:</strong> {{ route.distance }}<br>
+                    <strong>Duration:</strong> {{ route.duration }}<br>
+                    <strong>Vehicle Type:</strong> {{ route.vehicle_type|replace('_', ' ')|capitalize }}
+                </p>
+            </div>
+            <div class="col-md-6">
+                <h4>Compliance Summary</h4>
+                <p>
+                    <strong>Vehicle Compliance:</strong> 
+                    {% if compliance.vehicle and compliance.vehicle.compliant %}
+                        <span class="badge bg-success">Compliant</span>
+                    {% elif compliance.vehicle %}
+                        <span class="badge bg-danger">Non-Compliant</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Unknown</span>
+                    {% endif %}
+                </p>
+                <p>
+                    <strong>RTSP Compliance:</strong>
+                    {% if compliance.rtsp and compliance.rtsp.compliant %}
+                        <span class="badge bg-success">Compliant</span>
+                    {% elif compliance.rtsp %}
+                        <span class="badge bg-danger">Non-Compliant</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Unknown</span>
+                    {% endif %}
+                </p>
+                <p>
+                    <strong>Restricted Zones:</strong>
+                    {% if compliance.restricted_zones %}
+                        <span class="badge bg-warning">{{ compliance.restricted_zones|length }} zone(s)</span>
+                    {% else %}
+                        <span class="badge bg-success">None</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        
+        <!-- Vehicle Compliance -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h4 class="card-title">Vehicle Compliance Requirements</h4>
+            </div>
+            <div class="card-body">
+                {% if compliance.vehicle and compliance.vehicle.requirements %}
+                    <div class="table-responsive">
+                        <table class="table table-vcenter">
+                            <thead>
+                                <tr>
+                                    <th>Requirement</th>
+                                    <th>Mandatory</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in compliance.vehicle.requirements %}
+                                    <tr>
+                                        <td>{{ req.description }}</td>
+                                        <td>
+                                            {% if req.mandatory %}
+                                                <span class="badge bg-danger">Required</span>
+                                            {% else %}
+                                                <span class="badge bg-info">Recommended</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if req.details %}
+                                                {% for key, value in req.details.items() %}
+                                                    {% if key != 'required' %}
+                                                        <small>{{ key }}: {{ value }}</small><br>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty">
+                        <p class="empty-title">No vehicle compliance data available</p>
+                    </div>
+                {% endif %}
+                
+                {% if compliance.vehicle and compliance.vehicle.violations %}
+                    <div class="alert alert-danger mt-3">
+                        <h5>Compliance Violations</h5>
+                        <ul>
+                            {% for violation in compliance.vehicle.violations %}
+                                <li>{{ violation.description }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- RTSP Compliance -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h4 class="card-title">Driving Hours & Rest Periods (RTSP)</h4>
+            </div>
+            <div class="card-body">
+                {% if compliance.rtsp %}
+                    {% if compliance.rtsp.warnings %}
+                        <div class="alert alert-warning">
+                            <h5>Warnings</h5>
+                            <ul>
+                                {% for warning in compliance.rtsp.warnings %}
+                                    <li>{{ warning.description }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    
+                    {% if compliance.rtsp.recommendations %}
+                        <h5>Recommendations</h5>
+                        <ul>
+                            {% for rec in compliance.rtsp.recommendations %}
+                                <li>{{ rec.description }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                    
+                    {% if rest_stops %}
+                        <h5>Recommended Rest Stops</h5>
+                        <div class="table-responsive">
+                            <table class="table table-vcenter">
+                                <thead>
+                                    <tr>
+                                        <th>Stop #</th>
+                                        <th>After</th>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>Break Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for stop in rest_stops %}
+                                        <tr>
+                                            <td>{{ stop.stop_number }}</td>
+                                            <td>{{ stop.estimated_driving_time }}</td>
+                                            <td>{{ stop.name }}</td>
+                                            <td>
+                                                <span class="badge bg-{% if stop.type == 'fuel' %}warning{% elif stop.type == 'food' %}success{% else %}info{% endif %}-lt">
+                                                    {{ stop.type }}
+                                                </span>
+                                            </td>
+                                            <td>{{ stop.recommended_break_minutes }} minutes</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="empty">
+                        <p class="empty-title">No RTSP compliance data available</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Restricted Zones -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h4 class="card-title">Restricted Zones</h4>
+                {% if compliance.restricted_zones %}
+                    <div class="card-actions">
+                        <a href="{{ url_for('compliance_bp.restricted_zones_map', route_id=route.id) }}" class="btn btn-primary">
+                            <i class="ti ti-map me-1"></i>
+                            View on Map
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if compliance.restricted_zones %}
+                    <div class="table-responsive">
+                        <table class="table table-vcenter">
+                            <thead>
+                                <tr>
+                                    <th>Zone Name</th>
+                                    <th>Type</th>
+                                    <th>Restricted Hours</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for zone in compliance.restricted_zones %}
+                                    <tr>
+                                        <td>{{ zone.name }}</td>
+                                        <td>
+                                            <span class="badge bg-danger-lt">
+                                                {{ zone.type }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% for hour in zone.restricted_hours %}
+                                                <span class="badge bg-secondary">{{ hour }}</span>
+                                            {% endfor %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty">
+                        <div class="empty-icon">
+                            <i class="ti ti-check text-success" style="font-size: 2rem;"></i>
+                        </div>
+                        <p class="empty-title">No restricted zones on this route</p>
+                        <p class="empty-subtitle text-muted">
+                            This route does not pass through any time-restricted or vehicle-restricted zones.
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Speed Limits -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h4 class="card-title">Speed Limits</h4>
+            </div>
+            <div class="card-body">
+                {% if compliance.speed_limits %}
+                    <div class="table-responsive">
+                        <table class="table table-vcenter">
+                            <thead>
+                                <tr>
+                                    <th>Road Type</th>
+                                    <th>Speed Limit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for road_type, limit in compliance.speed_limits.items() %}
+                                    <tr>
+                                        <td>{{ road_type|replace('_', ' ')|capitalize }}</td>
+                                        <td>
+                                            <span class="badge bg-blue">{{ limit }} km/h</span>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty">
+                        <p class="empty-title">No speed limit data available</p>
+                    </div>
+                {% endif %}
+                
+                <div class="alert alert-info mt-3">
+                    <div class="d-flex">
+                        <div>
+                            <i class="ti ti-info-circle text-info" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h4 class="alert-title">Speed Limit Information</h4>
+                            <p>Always follow posted speed limits. The limits shown here are the maximum allowed for your vehicle type in ideal conditions.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

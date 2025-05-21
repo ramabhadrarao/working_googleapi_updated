@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    #zones-map {
+        height: 600px;
+        width: 100%;
+    }
+    
+    .map-legend {
+        background: white;
+        padding: 10px;
+        margin: 10px;
+        border-radius: 3px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Restricted Zones Map</h3>
+        <div class="card-actions">
+            <a href="{{ url_for('compliance_bp.compliance_analysis', route_id=route.id) }}" class="btn btn-primary d-none d-sm-inline-block">
+                <i class="ti ti-arrow-left me-1"></i>
+                Back to Compliance Analysis
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="zones-map"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initMap" async defer></script>
+<script>
+    function initMap() {
+        const restrictedZones = {{ restricted_zones|tojson }};
+        const polyline = {{ polyline|tojson }};
+        
+        // Initialize the map
+        const map = new google.maps.Map(document.getElementById("zones-map"), {
+            zoom: 10,
+            center: { lat: polyline[0][0], lng: polyline[0][1] },
+            mapTypeId: "roadmap"
+        });
+        
+        // Create bounds object
+        const bounds = new google.maps.LatLngBounds();
+        
+        // Add route polyline
+        const routePath = new google.maps.Polyline({
+            path: polyline.map(p => ({ lat: p[0], lng: p[1] })),
+            geodesic: true,
+            strokeColor: "#1E88E5",
+            strokeOpacity: 1.0,
+            strokeWeight: 4
+        });
+        
+        routePath.setMap(map);
+        
+        // Add all polyline points to bounds
+        polyline.forEach(point => {
+            bounds.extend({lat: point[0], lng: point[1]});
+        });
+        
+        // Add restricted zone markers
+        restrictedZones.forEach(zone => {
+            // Get zone coordinates
+            const zonePosition = {
+                lat: zone.coordinates.lat, 
+                lng: zone.coordinates.lng
+            };
+            
+            // Determine zone color based on type
+            let zoneColor = "#dc3545";  // Default red
+            if (zone.type === "time_restricted_zone") {
+                zoneColor = "#fd7e14";  // Orange
+            } else if (zone.type === "no_entry_zone") {
+                zoneColor = "#dc3545";  // Red
+            } else if (zone.type === "hazmat_restricted_zone") {
+                zoneColor = "#6f42c1";  // Purple
+            }
+            
+            // Create zone circle
+            const zoneCircle = new google.maps.Circle({
+                strokeColor: zoneColor,
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                fillColor: zoneColor,
+                fillOpacity: 0.35,
+                map: map,
+                center: zonePosition,
+                radius: zone.radius_km * 1000  // Convert km to meters
+            });
+            
+            // Create info marker at center of zone
+            const marker = new google.maps.Marker({
+                position: zonePosition,
+                map: map,
+                title: zone.name,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: "#FFFFFF",
+                    fillOpacity: 0.9,
+                    strokeColor: zoneColor,
+                    strokeWeight: 2,
+                    scale: 8
+                }
+            });
+            
+            // Create info window
+            const restrictionText = zone.restricted_hours ? 
+                `Restricted hours: ${zone.restricted_hours.join(', ')}` : '';
+                
+            const infoContent = `
+                <div>
+                    <h5>${zone.name}</h5>
+                    <p><strong>Type:</strong> ${zone.type}</p>
+                    <p>${restrictionText}</p>
+                </div>
+            `;
+            
+            const infoWindow = new google.maps.InfoWindow({
+                content: infoContent
+            });
+            
+            // Add click listener
+            marker.addListener('click', () => {
+                infoWindow.open(map, marker);
+            });
+            
+            // Extend bounds to include this zone
+            bounds.extend(zonePosition);
+        });
+        
+        // Fit map to bounds
+        map.fitBounds(bounds);
+        
+        // Add map legend
+        const legend = document.createElement("div");
+        legend.className = "map-legend";
+        legend.innerHTML = `
+            <div><strong>Restricted Zone Types</strong></div>
+            <div style="margin-top: 5px;">
+                <span style="display: inline-block; width: 20px; height: 20px; background-color: #fd7e14; border-radius: 50%; margin-right: 5px;"></span>
+                Time Restricted Zone
+            </div>
+            <div style="margin-top: 5px;">
+                <span style="display: inline-block; width: 20px; height: 20px; background-color: #dc3545; border-radius: 50%; margin-right: 5px;"></span>
+                No Entry Zone
+            </div>
+            <div style="margin-top: 5px;">
+                <span style="display: inline-block; width: 20px; height: 20px; background-color: #6f42c1; border-radius: 50%; margin-right: 5px;"></span>
+                Hazmat Restricted Zone
+            </div>
+        `;
+        
+        map.controls[google.maps.ControlPosition.TOP_RIGHT].push(legend);
+    }
+</script>
+{% endblock %}

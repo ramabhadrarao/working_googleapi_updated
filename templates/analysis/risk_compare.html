@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Compare Route Risks</h3>
+    </div>
+    <div class="card-body">
+        {% if routes %}
+            <div class="table-responsive">
+                <table class="table table-vcenter">
+                    <thead>
+                        <tr>
+                            <th>Route</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Distance</th>
+                            <th>Risk Level</th>
+                            <th>Risk Distribution</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for route in routes %}
+                            <tr>
+                                <td>{{ route.name }}</td>
+                                <td>{{ route.from }}</td>
+                                <td>{{ route.to }}</td>
+                                <td>{{ route.distance }}</td>
+                                <td>
+                                    <span class="badge bg-{{ route.risk.color }}">
+                                        {{ route.risk.level }}
+                                    </span>
+                                </td>
+                                <td width="200">
+                                    <div class="progress">
+                                        {% if route.risk.high_percent > 0 %}
+                                            <div class="progress-bar bg-danger" style="width: {{ route.risk.high_percent }}%" role="progressbar" aria-valuenow="{{ route.risk.high_percent }}" aria-valuemin="0" aria-valuemax="100" title="High: {{ route.risk.high_count }}"></div>
+                                        {% endif %}
+                                        {% if route.risk.medium_percent > 0 %}
+                                            <div class="progress-bar bg-warning" style="width: {{ route.risk.medium_percent }}%" role="progressbar" aria-valuenow="{{ route.risk.medium_percent }}" aria-valuemin="0" aria-valuemax="100" title="Medium: {{ route.risk.medium_count }}"></div>
+                                        {% endif %}
+                                        {% if route.risk.low_percent > 0 %}
+                                            <div class="progress-bar bg-success" style="width: {{ route.risk.low_percent }}%" role="progressbar" aria-valuenow="{{ route.risk.low_percent }}" aria-valuemin="0" aria-valuemax="100" title="Low: {{ route.risk.low_count }}"></div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('risk_bp.risk_analysis', route_id=route.id) }}" class="btn btn-sm btn-primary">
+                                        View Analysis
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty">
+                <div class="empty-icon">
+                    <i class="ti ti-map-off"></i>
+                </div>
+                <p class="empty-title">No routes found</p>
+                <p class="empty-subtitle text-muted">
+                    You need to create routes first before comparing them.
+                </p>
+                <div class="empty-action">
+                    <a href="{{ url_for('route_bp.index') }}" class="btn btn-primary">
+                        <i class="ti ti-plus me-1"></i>
+                        Create New Route
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

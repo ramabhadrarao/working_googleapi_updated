@@ -1,0 +1,81 @@
+/* Main CSS file for Route Analytics */
+
+/* Add custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
+/* Page transitions */
+.page-wrapper {
+    transition: all 0.3s ease;
+}
+
+/* Card hover effects */
+.card {
+    transition: all 0.3s;
+}
+
+.card:hover {
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1)!important;
+}
+
+/* Custom status indicator */
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+/* Custom Spacing */
+.mt-6 {
+    margin-top: 4rem;
+}
+
+.mb-6 {
+    margin-bottom: 4rem;
+}
+
+/* Additional styles for route analysis pages */
+.risk-high {
+    color: #dc3545;
+}
+
+.risk-medium {
+    color: #fd7e14;
+}
+
+.risk-low {
+    color: #28a745;
+}
+
+/* Print styles */
+@media print {
+    .d-print-none {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .card-header {
+        background: none !important;
+        border-bottom: 1px solid #dee2e6 !important;
+    }
+}

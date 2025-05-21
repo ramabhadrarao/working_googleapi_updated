@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row align-items-center g-5">
+        <div class="col-lg-6">
+            <h1 class="display-4 fw-bold lh-1 mb-3">Route Analytics Platform</h1>
+            <p class="lead">Comprehensive route analysis for safer, more efficient, and environmentally sound transportation.</p>
+            <p class="text-muted mb-4">
+                Analyze routes for risk factors, regulatory compliance, emergency preparedness, and environmental impact. 
+                Get detailed insights and recommendations for your journeys.
+            </p>
+            <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('route_bp.index') }}" class="btn btn-primary btn-lg px-4 me-md-2">
+                        <i class="ti ti-plus me-1"></i> Create New Route
+                    </a>
+                    <a href="{{ url_for('route_bp.list_routes') }}" class="btn btn-outline-secondary btn-lg px-4">
+                        <i class="ti ti-list me-1"></i> My Routes
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg px-4 me-md-2">
+                        <i class="ti ti-login me-1"></i> Login
+                    </a>
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-outline-secondary btn-lg px-4">
+                        <i class="ti ti-user-plus me-1"></i> Register
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <img src="{{ url_for('static', filename='images/hero-image.png') }}" class="d-block mx-lg-auto img-fluid" alt="Route Analytics Platform" onerror="this.src='{{ url_for('static', filename='images/map-placeholder.png') }}'">
+        </div>
+    </div>
+
+    <div class="row mt-5 pt-5">
+        <div class="col-12 text-center mb-4">
+            <h2 class="display-5 fw-bold">Comprehensive Route Analysis</h2>
+            <p class="lead">Our platform provides in-depth analysis across four key dimensions</p>
+        </div>
+    </div>
+
+    <div class="row g-4 py-4 row-cols-1 row-cols-md-2 row-cols-lg-4">
+        <div class="col d-flex align-items-start">
+            <div class="bg-danger text-white rounded-3 p-3 me-3">
+                <i class="ti ti-alert-triangle fs-1"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0 fs-4">Risk Analysis</h3>
+                <p>Identify hazards like sharp turns, steep gradients, weather effects, and road conditions.</p>
+            </div>
+        </div>
+        <div class="col d-flex align-items-start">
+            <div class="bg-primary text-white rounded-3 p-3 me-3">
+                <i class="ti ti-license fs-1"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0 fs-4">Regulatory Compliance</h3>
+                <p>Stay compliant with driving hours, rest periods, restricted zones, and vehicle requirements.</p>
+            </div>
+        </div>
+        <div class="col d-flex align-items-start">
+            <div class="bg-warning text-white rounded-3 p-3 me-3">
+                <i class="ti ti-ambulance fs-1"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0 fs-4">Emergency Preparedness</h3>
+                <p>Access emergency services, critical points, and customized response plans.</p>
+            </div>
+        </div>
+        <div class="col d-flex align-items-start">
+            <div class="bg-success text-white rounded-3 p-3 me-3">
+                <i class="ti ti-leaf fs-1"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0 fs-4">Environmental Impact</h3>
+                <p>Monitor carbon footprint, identify sensitive zones, and receive eco-driving tips.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-12 text-center">
+            <h2 class="display-5 fw-bold">Key Features</h2>
+        </div>
+    </div>
+
+    <div class="row g-4 py-4">
+        <div class="col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h3 class="card-title"><i class="ti ti-route me-2 text-primary"></i>Route Analysis</h3>
+                    <p class="card-text">Enter addresses or coordinates to analyze your route for multiple risk factors and get detailed insights.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h3 class="card-title"><i class="ti ti-map me-2 text-danger"></i>Interactive Maps</h3>
+                    <p class="card-text">Visualize risk areas, emergency services, and environmental zones along your route.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h3 class="card-title"><i class="ti ti-file-report me-2 text-success"></i>Comprehensive Reports</h3>
+                    <p class="card-text">Generate detailed PDF reports for your routes, including driver briefings and summaries.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h3 class="card-title"><i class="ti ti-route-2 me-2 text-warning"></i>Alternative Routes</h3>
+                    <p class="card-text">Compare multiple route options to find the safest and most efficient path.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

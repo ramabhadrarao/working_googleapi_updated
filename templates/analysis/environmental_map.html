@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    #environmental-map {
+        height: 600px;
+        width: 100%;
+    }
+    
+    .map-legend {
+        background: white;
+        padding: 10px;
+        margin: 10px;
+        border-radius: 3px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Environmental Zones Map</h3>
+        <div class="card-actions">
+            <a href="{{ url_for('environmental_bp.environmental_analysis', route_id=route.id) }}" class="btn btn-primary d-none d-sm-inline-block">
+                <i class="ti ti-arrow-left me-1"></i>
+                Back to Environmental Analysis
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="environmental-map"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initMap" async defer></script>
+<script>
+    function initMap() {
+        const sensitiveAreas = {{ sensitive_areas|tojson }};
+        const polyline = {{ polyline|tojson }};
+        
+        // Initialize the map
+        const map = new google.maps.Map(document.getElementById("environmental-map"), {
+            zoom: 10,
+            center: { lat: polyline[0][0], lng: polyline[0][1] },
+            mapTypeId: "roadmap"
+        });
+        
+        // Create bounds object
+        const bounds = new google.maps.LatLngBounds();
+        
+        // Add route polyline
+        const routePath = new google.maps.Polyline({
+            path: polyline.map(p => ({ lat: p[0], lng: p[1] })),
+            geodesic: true,
+            strokeColor: "#1E88E5",
+            strokeOpacity: 1.0,
+            strokeWeight: 4
+        });
+        
+        routePath.setMap(map);
+        
+        // Add all polyline points to bounds
+        polyline.forEach(point => {
+            bounds.extend({lat: point[0], lng: point[1]});
+        });
+        
+        // Add sensitive area circles
+        sensitiveAreas.forEach(area => {
+            // Get area coordinates
+            const areaPosition = {
+                lat: area.coordinates.lat, 
+                lng: area.coordinates.lng
+            };
+            
+            // Determine area color based on type
+            let areaColor = "#28a745";  // Default green
+            if (area.type === "national_park") {
+                areaColor = "#28a745";  // Green
+            } else if (area.type === "wildlife_sanctuary") {
+                areaColor = "#20c997";  // Teal
+            } else if (area.type === "forest_reserve") {
+                areaColor = "#4caf50";  // Green
+            } else if (area.type === "low_emission_zone") {
+                areaColor = "#17a2b8";  // Cyan
+            } else if (area.type === "wildlife_crossing") {
+                areaColor = "#ffc107";  // Yellow
+            }
+            
+            // Create area circle
+            const areaCircle = new google.maps.Circle({
+                strokeColor: areaColor,
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                fillColor: areaColor,
+                fillOpacity: 0.35,
+                map: map,
+                center: areaPosition,
+                radius: area.radius_km * 1000  // Convert km to meters
+            });
+            
+            // Create info marker at center of area
+            const marker = new google.maps.Marker({
+                position: areaPosition,
+                map: map,
+                title: area.name,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: "#FFFFFF",
+                    fillOpacity: 0.9,
+                    strokeColor: areaColor,
+                    strokeWeight: 2,
+                    scale: 8
+                }
+            });
+            
+            // Create info window content
+            let restrictionsHtml = '';
+            if (area.restrictions) {
+                restrictionsHtml += '<ul class="mt-1 mb-0">';
+                for (const [key, value] of Object.entries(area.restrictions)) {
+                    if (key === 'speed_limit') {
+                        restrictionsHtml += `<li>Speed limit: ${value} km/h</li>`;
+                    } else if (key === 'no_honking' && value) {
+                        restrictionsHtml += '<li>No honking allowed</li>';
+                    } else if (key === 'hazmat_prohibited' && value) {
+                        restrictionsHtml += '<li>Hazardous materials prohibited</li>';
+                    } else if (key === 'night_driving_prohibited' && value) {
+                        restrictionsHtml += '<li>Night driving prohibited</li>';
+                    }
+                }
+                restrictionsHtml += '</ul>';
+            }
+            
+            const infoContent = `
+                <div>
+                    <h5>${area.name}</h5>
+                    <p><strong>Type:</strong> ${area.type.replace('_', ' ')}</p>
+                    ${restrictionsHtml}
+                </div>
+            `;
+            
+            const infoWindow = new google.maps.InfoWindow({
+                content: infoContent
+            });
+            
+            // Add click listener
+            marker.addListener('click', () => {
+                infoWindow.open(map, marker);
+            });
+            
+            // Extend bounds to include this area
+            bounds.extend(areaPosition);
+        });
+        
+        // Fit map to bounds
+        map.fitBounds(bounds);
+        
+        // Add map legend
+        const legend = document.createElement("div");
+        legend.className = "map-legend";
+        legend.innerHTML = `
+            <div><strong>Environmental Zone Types</strong></div>
+            <div style="margin-top: 5px;">
+                <span style="display: inline-block; width: 20px; height: 20px; background-color: #28a745; border-radius: 50%; margin-right: 5px;"></span>
+                National Park
+            </div>
+            <div style="margin-top: 5px;">
+                <span style="display: inline-block; width: 20px; height: 20px; background-color: #20c997; border-radius: 50%; margin-right: 5px;"></span>
+                Wildlife Sanctuary
+            </div>
+            <div style="margin-top: 5px;">
+                <span style="display: inline-block; width: 20px; height: 20px; background-color: #4caf50; border-radius: 50%; margin-right: 5px;"></span>
+                Forest Reserve
+            </div>
+            <div style="margin-top: 5px;">
+                <span style="display: inline-block; width: 20px; height: 20px; background-color: #17a2b8; border-radius: 50%; margin-right: 5px;"></span>
+                Low Emission Zone
+            </div>
+            <div style="margin-top: 5px;">
+                <span style="display: inline-block; width: 20px; height: 20px; background-color: #ffc107; border-radius: 50%; margin-right: 5px;"></span>
+                Wildlife Crossing
+            </div>
+        `;
+        
+        map.controls[google.maps.ControlPosition.TOP_RIGHT].push(legend);
+    }
+</script>
+{% endblock %}

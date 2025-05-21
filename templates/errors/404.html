@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container text-center py-5">
+    <div class="empty">
+        <div class="empty-header">404</div>
+        <p class="empty-title">Oops... Page not found</p>
+        <p class="empty-subtitle text-muted">
+            We're sorry, but the page you were looking for doesn't exist.
+        </p>
+        <div class="empty-action">
+            <a href="{{ url_for('main.index') }}" class="btn btn-primary">
+                <i class="ti ti-home me-1"></i>
+                Take me home
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

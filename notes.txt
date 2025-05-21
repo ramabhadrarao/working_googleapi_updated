@@ -1,0 +1,18 @@
+(venv) ramabhadrarao@RamaBhadraRao:/mnt/f/working_googleapi_updated$ python create_admin.py
+'FLASK_ENV' is deprecated and will not be used in Flask 2.3. Use 'FLASK_DEBUG' instead.
+User with email admin@routeanalytics.com already exists.
+
+Admin User Details:
+Username: admin
+Email: admin@routeanalytics.com
+First Name: Admin
+Last Name: User
+Role: admin
+
+Use these credentials to log in to the application.
+IMPORTANT: Remember to change the default password in production!
+
+Username: admin
+Email: admin@routeanalytics.com
+Password: admin123
+Role: admin

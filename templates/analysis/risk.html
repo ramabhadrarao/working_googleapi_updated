@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Risk Analysis for Route #{{ route.id }}</h3>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h4>Route Details</h4>
+                <p>
+                    <strong>From:</strong> {{ route.from_address }}<br>
+                    <strong>To:</strong> {{ route.to_address }}<br>
+                    <strong>Distance:</strong> {{ route.distance }}<br>
+                    <strong>Duration:</strong> {{ route.duration }}
+                </p>
+            </div>
+            <div class="col-md-6">
+                <h4>Risk Summary</h4>
+                <p>
+                    <strong>Overall Risk Level:</strong> 
+                    <span class="badge bg-{{ risk_data.summary.risk_color }}">{{ risk_data.summary.overall_risk }}</span>
+                </p>
+                <p>
+                    <strong>High Risk Segments:</strong> {{ risk_data.summary.high_count }}<br>
+                    <strong>Medium Risk Segments:</strong> {{ risk_data.summary.medium_count }}<br>
+                    <strong>Low Risk Segments:</strong> {{ risk_data.summary.low_count }}
+                </p>
+            </div>
+        </div>
+        
+        <h4 class="mt-4">Risk Segments</h4>
+        <div class="table-responsive">
+            <table class="table table-vcenter">
+                <thead>
+                    <tr>
+                        <th>Segment</th>
+                        <th>Risk Level</th>
+                        <th>Risk Score</th>
+                        <th>Risk Factors</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for segment in risk_data.segments %}
+                    <tr>
+                        <td>Segment {{ loop.index }}</td>
+                        <td>
+                            <span class="badge bg-{% if segment.risk_level == 'HIGH' %}danger{% elif segment.risk_level == 'MEDIUM' %}warning{% else %}success{% endif %}">
+                                {{ segment.risk_level }}
+                            </span>
+                        </td>
+                        <td>{{ segment.risk_score|round(1) }}</td>
+                        <td>
+                            {% for factor in segment.risk_factors %}
+                                <span class="badge bg-blue-lt me-1">
+                                    {% if factor.type == 'sharp_turns' %}
+                                        {{ factor.count }} sharp turns
+                                    {% elif factor.type == 'elevation' %}
+                                        {{ factor.change|round }}m elevation change
+                                    {% elif factor.type == 'weather' %}
+                                        {{ factor.condition }}
+                                    {% elif factor.type == 'road_quality' %}
+                                        Poor road condition
+                                    {% else %}
+                                        {{ factor.type }}
+                                    {% endif %}
+                                </span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

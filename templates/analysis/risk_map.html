@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    #risk-map {
+        height: 600px;
+        width: 100%;
+    }
+    
+    .map-legend {
+        background: white;
+        padding: 10px;
+        margin: 10px;
+        border-radius: 3px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    .map-legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+    
+    .map-legend-color {
+        width: 20px;
+        height: 20px;
+        margin-right: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Risk Map</h3>
+        <div class="card-actions">
+            <a href="{{ url_for('risk_bp.risk_analysis', route_id=route.id) }}" class="btn btn-primary d-none d-sm-inline-block">
+                <i class="ti ti-arrow-left me-1"></i>
+                Back to Risk Analysis
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="risk-map"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initMap" async defer></script>
+<script>
+    function initMap() {
+        const mapData = {{ map_data|tojson }};
+        const polyline = {{ polyline|tojson }};
+        
+        // Initialize the map
+        const map = new google.maps.Map(document.getElementById("risk-map"), {
+            zoom: 10,
+            center: { lat: polyline[0][0], lng: polyline[0][1] },
+            mapTypeId: "roadmap"
+        });
+        
+        // Create bounds object to fit all segments
+        const bounds = new google.maps.LatLngBounds();
+        
+        // Add risk segments to the map
+        mapData.forEach(segment => {
+            const path = new google.maps.Polyline({
+                path: segment.path,
+                geodesic: true,
+                strokeColor: segment.color,
+                strokeOpacity: 1.0,
+                strokeWeight: 5
+            });
+            
+            path.setMap(map);
+            
+            // Add tooltip with risk info
+            google.maps.event.addListener(path, 'click', function(event) {
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `<div><strong>Risk Level: ${segment.risk_level}</strong><br>Risk Score: ${segment.risk_score.toFixed(1)}</div>`,
+                    position: event.latLng
+                });
+                infoWindow.open(map);
+            });
+            
+            // Add points to bounds
+            segment.path.forEach(point => {
+                bounds.extend(new google.maps.LatLng(point.lat, point.lng));
+            });
+        });
+        
+        // Fit map to bounds
+        map.fitBounds(bounds);
+        
+        // Add map legend
+        const legend = document.createElement("div");
+        legend.className = "map-legend";
+        legend.innerHTML = `
+            <div><strong>Risk Levels</strong></div>
+            <div class="map-legend-item">
+                <div class="map-legend-color" style="background-color: #dc3545;"></div>
+                <div>High Risk</div>
+            </div>
+            <div class="map-legend-item">
+                <div class="map-legend-color" style="background-color: #fd7e14;"></div>
+                <div>Medium Risk</div>
+            </div>
+            <div class="map-legend-item">
+                <div class="map-legend-color" style="background-color: #28a745;"></div>
+                <div>Low Risk</div>
+            </div>
+        `;
+        
+        map.controls[google.maps.ControlPosition.TOP_RIGHT].push(legend);
+    }
+</script>
+{% endblock %}

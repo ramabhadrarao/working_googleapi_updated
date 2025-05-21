@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Dashboard</h3>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-status-top bg-primary"></div>
+                    <div class="card-body text-center">
+                        <div class="display-4 fw-bold">{{ recent_routes|length }}</div>
+                        <div class="text-muted">Recent Routes</div>
+                    </div>
+                    <div class="card-footer">
+                        <a href="{{ url_for('route_bp.list_routes') }}" class="btn btn-primary w-100">
+                            <i class="ti ti-list me-1"></i> View All Routes
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-status-top bg-success"></div>
+                    <div class="card-body text-center">
+                        <div class="h1">
+                            <i class="ti ti-plus"></i>
+                        </div>
+                        <div class="text-muted">Create New Route</div>
+                    </div>
+                    <div class="card-footer">
+                        <a href="{{ url_for('route_bp.index') }}" class="btn btn-success w-100">
+                            <i class="ti ti-route me-1"></i> Create Route
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-status-top bg-info"></div>
+                    <div class="card-body text-center">
+                        <div class="h1">
+                            <i class="ti ti-file-report"></i>
+                        </div>
+                        <div class="text-muted">Reports</div>
+                    </div>
+                    <div class="card-footer">
+                        <a href="{{ url_for('report_bp.list_reports') }}" class="btn btn-info w-100">
+                            <i class="ti ti-files me-1"></i> View Reports
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <h4>Recent Routes</h4>
+                {% if recent_routes %}
+                    <div class="table-responsive">
+                        <table class="table table-vcenter card-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Distance</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for route in recent_routes %}
+                                    <tr>
+                                        <td>{{ route.name }}</td>
+                                        <td>{{ route.from_address }}</td>
+                                        <td>{{ route.to_address }}</td>
+                                        <td>{{ route.distance }}</td>
+                                        <td>{{ route.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td>
+                                            <a href="{{ url_for('route_bp.view', route_id=route.id) }}" class="btn btn-sm btn-primary">
+                                                View
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty">
+                        <div class="empty-icon">
+                            <i class="ti ti-route-off"></i>
+                        </div>
+                        <p class="empty-title">No routes yet</p>
+                        <p class="empty-subtitle text-muted">
+                            Create your first route to get started with the analysis.
+                        </p>
+                        <div class="empty-action">
+                            <a href="{{ url_for('route_bp.index') }}" class="btn btn-primary">
+                                <i class="ti ti-plus me-1"></i> Create New Route
+                            </a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title">Quick Links</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group">
+                            <a href="{{ url_for('route_bp.index') }}" class="list-group-item list-group-item-action">
+                                <div class="row align-items-center">
+                                    <div class="col-auto">
+                                        <i class="ti ti-route text-primary"></i>
+                                    </div>
+                                    <div class="col">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>Create New Route</div>
+                                            <span class="badge bg-primary-lt ms-auto">New</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                            <a href="{{ url_for('route_bp.list_routes') }}" class="list-group-item list-group-item-action">
+                                <div class="row align-items-center">
+                                    <div class="col-auto">
+                                        <i class="ti ti-list text-info"></i>
+                                    </div>
+                                    <div class="col">
+                                        <div>View All Routes</div>
+                                    </div>
+                                </div>
+                            </a>
+                            <a href="{{ url_for('report_bp.list_reports') }}" class="list-group-item list-group-item-action">
+                                <div class="row align-items-center">
+                                    <div class="col-auto">
+                                        <i class="ti ti-files text-success"></i>
+                                    </div>
+                                    <div class="col">
+                                        <div>Manage Reports</div>
+                                    </div>
+                                </div>
+                            </a>
+                            <a href="{{ url_for('auth.profile') }}" class="list-group-item list-group-item-action">
+                                <div class="row align-items-center">
+                                    <div class="col-auto">
+                                        <i class="ti ti-user text-secondary"></i>
+                                    </div>
+                                    <div class="col">
+                                        <div>Edit Profile</div>
+                                    </div>
+                                </div>
+                            </a>
+                            <a href="{{ url_for('main.help') }}" class="list-group-item list-group-item-action">
+                                <div class="row align-items-center">
+                                    <div class="col-auto">
+                                        <i class="ti ti-help text-purple"></i>
+                                    </div>
+                                    <div class="col">
+                                        <div>Help & Documentation</div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title">System Status</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <span class="status-indicator bg-success"></span>
+                                </div>
+                                <div>
+                                    <div class="font-weight-medium">Route Analysis</div>
+                                    <div class="text-muted">All systems operational</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <span class="status-indicator bg-success"></span>
+                                </div>
+                                <div>
+                                    <div class="font-weight-medium">Google Maps API</div>
+                                    <div class="text-muted">Connected and functioning</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <span class="status-indicator bg-success"></span>
+                                </div>
+                                <div>
+                                    <div class="font-weight-medium">Weather Data</div>
+                                    <div class="text-muted">Data feed active</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <span class="status-indicator bg-success"></span>
+                                </div>
+                                <div>
+                                    <div class="font-weight-medium">PDF Generation</div>
+                                    <div class="text-muted">Report system online</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <span class="status-indicator bg-success"></span>
+                                </div>
+                                <div>
+                                    <div class="font-weight-medium">Database</div>
+                                    <div class="text-muted">Connected and operational</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Contact Us</h3>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h4>Get in Touch</h4>
+                <p>
+                    We're here to help with any questions or feedback you may have about the Route Analytics platform.
+                </p>
+                
+                <form class="mt-4">
+                    <div class="mb-3">
+                        <label class="form-label">Your Name</label>
+                        <input type="text" class="form-control" placeholder="Enter your name">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" class="form-control" placeholder="Enter your email">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Subject</label>
+                        <select class="form-select">
+                            <option selected>Select a subject</option>
+                            <option>General Inquiry</option>
+                            <option>Technical Support</option>
+                            <option>Feature Request</option>
+                            <option>Billing Question</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Message</label>
+                        <textarea class="form-control" rows="6" placeholder="Type your message here..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ti ti-send me-1"></i> Send Message
+                    </button>
+                </form>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h4 class="card-title">Contact Information</h4>
+                        
+                        <div class="mt-4">
+                            <div class="d-flex">
+                                <div class="avatar bg-primary-lt p-3 me-3">
+                                    <i class="ti ti-mail text-primary"></i>
+                                </div>
+                                <div>
+                                    <h5>Email</h5>
+                                    <p>support@routeanalytics.example</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <div class="d-flex">
+                                <div class="avatar bg-green-lt p-3 me-3">
+                                    <i class="ti ti-phone text-green"></i>
+                                </div>
+                                <div>
+                                    <h5>Phone</h5>
+                                    <p>+1 (123) 456-7890</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <div class="d-flex">
+                                <div class="avatar bg-yellow-lt p-3 me-3">
+                                    <i class="ti ti-building text-yellow"></i>
+                                </div>
+                                <div>
+                                    <h5>Office</h5>
+                                    <p>
+                                        123 Analytics Way<br>
+                                        Suite 456<br>
+                                        Tech City, TX 12345<br>
+                                        United States
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <div class="d-flex">
+                                <div class="avatar bg-red-lt p-3 me-3">
+                                    <i class="ti ti-clock text-red"></i>
+                                </div>
+                                <div>
+                                    <h5>Business Hours</h5>
+                                    <p>
+                                        Monday - Friday: 9:00 AM - 5:00 PM EST<br>
+                                        Saturday & Sunday: Closed
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

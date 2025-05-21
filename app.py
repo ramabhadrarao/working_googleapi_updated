@@ -4,6 +4,7 @@ from flask_login import current_user
 from config import config
 from models import db, login_manager
 from flask_session import Session
+import datetime
 
 def create_app(config_name='default'):
     """Create and configure the Flask application."""
@@ -57,6 +58,10 @@ def create_app(config_name='default'):
     # Create all tables
     with app.app_context():
         db.create_all()
+    @app.context_processor
+    def inject_now():
+        """Add current datetime to all templates."""
+        return {'now': datetime.datetime.now()}
     
     # Inject variables into Jinja templates
     @app.context_processor

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container text-center py-5">
+    <div class="empty">
+        <div class="empty-header">500</div>
+        <p class="empty-title">Internal Server Error</p>
+        <p class="empty-subtitle text-muted">
+            We're sorry, but something went wrong on our server.
+        </p>
+        <div class="empty-action">
+            <a href="{{ url_for('main.index') }}" class="btn btn-primary">
+                <i class="ti ti-home me-1"></i>
+                Return to homepage
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Emergency Contacts</h3>
+        <div class="card-actions">
+            <a href="{{ url_for('emergency_bp.emergency_analysis', route_id=route.id) }}" class="btn btn-primary d-none d-sm-inline-block">
+                <i class="ti ti-arrow-left me-1"></i>
+                Back to Emergency Analysis
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <div class="d-flex">
+                <div>
+                    <i class="ti ti-info-circle text-info" style="font-size: 1.5rem;"></i>
+                </div>
+                <div class="ms-3">
+                    <h4 class="alert-title">Important Information</h4>
+                    <p>Keep this list of emergency contacts readily available during your journey.</p>
+                </div>
+            </div>
+        </div>
+        
+        {% if contacts %}
+            <h4>National Emergency Numbers</h4>
+            <div class="table-responsive">
+                <table class="table table-vcenter">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Number</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for contact in contacts %}
+                            {% if contact.type in ['general', 'police', 'medical', 'fire', 'highway'] %}
+                                <tr>
+                                    <td>{{ contact.name }}</td>
+                                    <td>
+                                        <strong>{{ contact.number }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if contact.type == 'general' %}danger{% elif contact.type == 'medical' %}success{% elif contact.type == 'police' %}primary{% elif contact.type == 'fire' %}warning{% else %}info{% endif %}-lt">
+                                            {{ contact.type }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <h4 class="mt-4">Company Contacts</h4>
+            <div class="table-responsive">
+                <table class="table table-vcenter">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Number</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for contact in contacts %}
+                            {% if contact.type == 'company' %}
+                                <tr>
+                                    <td>{{ contact.name }}</td>
+                                    <td>
+                                        <strong>{{ contact.number }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-orange-lt">
+                                            {{ contact.type }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <h4 class="mt-4">Local Emergency Services on Route</h4>
+            <div class="table-responsive">
+                <table class="table table-vcenter">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Address</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for contact in contacts %}
+                            {% if contact.type in ['hospital', 'police'] and contact.vicinity %}
+                                <tr>
+                                    <td>{{ contact.name }}</td>
+                                    <td>{{ contact.vicinity }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if contact.type == 'hospital' %}success{% elif contact.type == 'police' %}primary{% else %}secondary{% endif %}-lt">
+                                            {{ contact.type }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty">
+                <div class="empty-icon">
+                    <i class="ti ti-phone-off"></i>
+                </div>
+                <p class="empty-title">No emergency contacts</p>
+                <p class="empty-subtitle text-muted">
+                    No emergency contact information available for this route.
+                </p>
+            </div>
+        {% endif %}
+        
+        <div class="d-print-none mt-4">
+            <button class="btn btn-primary" onclick="window.print()">
+                <i class="ti ti-printer me-1"></i>
+                Print Contacts
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}

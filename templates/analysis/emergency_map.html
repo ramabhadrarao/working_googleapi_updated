@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    #emergency-map {
+        height: 600px;
+        width: 100%;
+    }
+    
+    .map-legend {
+        background: white;
+        padding: 10px;
+        margin: 10px;
+        border-radius: 3px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Emergency Services Map</h3>
+        <div class="card-actions">
+            <a href="{{ url_for('emergency_bp.emergency_analysis', route_id=route.id) }}" class="btn btn-primary d-none d-sm-inline-block">
+                <i class="ti ti-arrow-left me-1"></i>
+                Back to Emergency Analysis
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="emergency-map"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initMap" async defer></script>
+<script>
+    function initMap() {
+        const mapData = {{ map_data|tojson }};
+        const polyline = {{ polyline|tojson }};
+        
+        // Initialize the map
+        const map = new google.maps.Map(document.getElementById("emergency-map"), {
+            zoom: 10,
+            center: { lat: polyline[0][0], lng: polyline[0][1] },
+            mapTypeId: "roadmap"
+        });
+        
+        // Create bounds object
+        const bounds = new google.maps.LatLngBounds();
+        
+        // Add route polyline
+        const routePath = new google.maps.Polyline({
+            path: polyline.map(p => ({ lat: p[0], lng: p[1] })),
+            geodesic: true,
+            strokeColor: "#1E88E5",
+            strokeOpacity: 1.0,
+            strokeWeight: 4
+        });
+        
+        routePath.setMap(map);
+        
+        // Add all polyline points to bounds
+        polyline.forEach(point => {
+            bounds.extend({lat: point[0], lng: point[1]});
+        });
+        
+        // Add hospital markers
+        mapData.hospitals.forEach(hospital => {
+            const marker = new google.maps.Marker({
+                position: { lat: hospital.lat, lng: hospital.lng },
+                map: map,
+                title: hospital.name,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: "#28a745",
+                    fillOpacity: 0.8,
+                    strokeColor: "#FFFFFF",
+                    strokeWeight: 2,
+                    scale: 10
+                }
+            });
+            
+            // Add info window
+            const infoWindow = new google.maps.InfoWindow({
+                content: `<div><strong>${hospital.name}</strong><br>Hospital</div>`
+            });
+            
+            marker.addListener('click', () => {
+                infoWindow.open(map, marker);
+            });
+            
+            // Add to bounds
+            bounds.extend(marker.getPosition());
+        });
+        
+        // Add police station markers
+        mapData.police_stations.forEach(police => {
+            const marker = new google.maps.Marker({
+                position: { lat: police.lat, lng: police.lng },
+                map: map,
+                title: police.name,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: "#007bff",
+                    fillOpacity: 0.8,
+                    strokeColor: "#FFFFFF",
+                    strokeWeight: 2,
+                    scale: 10
+                }
+            });
+            
+            // Add info window
+            const infoWindow = new google.maps.InfoWindow({
+                content: `<div><strong>${police.name}</strong><br>Police Station</div>`
+            });
+            
+            marker.addListener('click', () => {
+                infoWindow.open(map, marker);
+            });
+            
+            // Add to bounds
+            bounds.extend(marker.getPosition());
+        });
+        
+        // Add fuel station markers
+        mapData.fuel_stations.forEach(fuel => {
+            const marker = new google.maps.Marker({
+                position: { lat: fuel.lat, lng: fuel.lng },
+                map: map,
+                title: fuel.name,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: "#ffc107",
+                    fillOpacity: 0.8,
+                    strokeColor: "#FFFFFF",
+                    strokeWeight: 2,
+                    scale: 10
+                }
+            });
+            
+            // Add info window
+            const infoWindow = new google.maps.InfoWindow({
+                content: `<div><strong>${fuel.name}</strong><br>Fuel Station</div>`
+            });
+            
+            marker.addListener('click', () => {
+                infoWindow.open(map, marker);
+            });
+            
+            // Add to bounds
+            bounds.extend(marker.getPosition());
+        });
+        
+        // Add critical points
+        mapData.critical_points.forEach(point => {
+            const marker = new google.maps.Marker({
+                position: { lat: point.lat, lng: point.lng },
+                map: map,
+                title: "Critical Point",
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: "#dc3545",
+                    fillOpacity: 0.8,
+                    strokeColor: "#FFFFFF",
+                    strokeWeight: 2,
+                    scale: 12
+                }
+            });
+            
+            // Add info window
+            const infoWindow = new google.maps.InfoWindow({
+                content: `
+                    <div>
+                        <strong>Critical Point</strong><br>
+                        Limited access to emergency services<br>
+                        Nearest service: ${point.nearest_service}<br>
+                        Distance: ${point.distance} km
+                    </div>
+                `
+            });
+            
+            marker.addListener('click', () => {
+                infoWindow.open(map, marker);
+            });
+            
+            // Add to bounds
+            bounds.extend(marker.getPosition());
+        });
+        
+        // Fit map to bounds
+        map.fitBounds(bounds);
+        
+        // Add map legend
+        const legend = document.createElement("div");
+        legend.className = "map-legend";
+        legend.innerHTML = `
+            <div><strong>Emergency Services</strong></div>
+            <div style="margin-top: 5px;">
+                <span style="display: inline-block; width: 20px; height: 20px; background-color: #28a745; border-radius: 50%; margin-right: 5px;"></span>
+                Hospital
+            </div>
+            <div style="margin-top: 5px;">
+                <span style="display: inline-block; width: 20px; height: 20px; background-color: #007bff; border-radius: 50%; margin-right: 5px;"></span>
+                Police Station
+            </div>
+            <div style="margin-top: 5px;">
+                <span style="display: inline-block; width: 20px; height: 20px; background-color: #ffc107; border-radius: 50%; margin-right: 5px;"></span>
+                Fuel Station
+            </div>
+            <div style="margin-top: 5px;">
+                <span style="display: inline-block; width: 20px; height: 20px; background-color: #dc3545; border-radius: 50%; margin-right: 5px;"></span>
+                Critical Point (Limited Services)
+            </div>
+        `;
+        
+        map.controls[google.maps.ControlPosition.TOP_RIGHT].push(legend);
+    }
+</script>
+{% endblock %}

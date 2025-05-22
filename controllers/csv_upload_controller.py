@@ -348,19 +348,67 @@ def view_csv_route(route_id):
     # Get route data from database
     data = route.get_route_data()
     
+    # Ensure data structure is compatible with CSV dashboard template
+    if not data:
+        data = {}
+    
+    # Fix missing fields that might cause template errors
+    data.setdefault('distance', route.distance or '0 km')
+    data.setdefault('duration', route.duration or '0 mins')
+    data.setdefault('vehicle_type', route.vehicle_type or 'car')
+    data.setdefault('sharp_turns', [])
+    data.setdefault('elevation', [])
+    data.setdefault('weather', [])
+    data.setdefault('risk_segments', [])
+    data.setdefault('compliance', {})
+    data.setdefault('emergency', {})
+    data.setdefault('environmental', {})
+    data.setdefault('petrol_bunks', {})
+    data.setdefault('hospitals', {})
+    data.setdefault('schools', {})
+    data.setdefault('food_stops', {})
+    data.setdefault('police_stations', {})
+    data.setdefault('original_points', [])
+    data.setdefault('filtered_points', [])
+    data.setdefault('points_filtered', 0)
+    
+    # Fix risk segments to include distance field
+    risk_segments = route.get_risk_analysis() or []
+    for segment in risk_segments:
+        if 'distance' not in segment:
+            # Calculate approximate distance for the segment
+            points = segment.get('points', [])
+            if len(points) >= 2:
+                from geopy.distance import geodesic
+                total_distance = 0
+                for i in range(len(points) - 1):
+                    try:
+                        p1 = (points[i][0], points[i][1])
+                        p2 = (points[i+1][0], points[i+1][1])
+                        total_distance += geodesic(p1, p2).meters
+                    except:
+                        continue
+                segment['distance'] = total_distance
+            else:
+                segment['distance'] = 0
+    
+    # Update risk segments in data
+    data['risk_segments'] = risk_segments
+    
     # Prepare map data
     map_data = {
         'polyline': json.loads(route.polyline) if route.polyline else [], 
         'sharp_turns': data.get('sharp_turns', []),
-        'risk_segments': get_risk_map_data(route.get_risk_analysis()),
+        'risk_segments': get_risk_map_data(risk_segments),
         'toll_gates': data.get('toll_gates', []),
         'bridges': data.get('bridges', []),
         'original_points': data.get('original_points', []),
         'filtered_points': data.get('filtered_points', [])
     }
     
+    # Use the CSV-specific dashboard template
     return render_template(
-        "csv_upload/dashboard.html", 
+        "csv_upload/dashboard.html",  # This should be the CSV-specific template
         route=route,
         data=data, 
         map_data=map_data, 

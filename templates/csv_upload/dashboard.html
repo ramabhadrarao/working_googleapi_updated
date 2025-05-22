@@ -1,4 +1,4 @@
-<!-- templates/csv_upload/dashboard.html -->
+<!-- templates/csv_upload/dashboard.html - FIXED TEMPLATE SYNTAX -->
 {% extends "base.html" %}
 
 {% block extra_css %}
@@ -26,28 +26,30 @@
         margin: 10px 0;
     }
     
-    .map-controls {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        z-index: 1000;
-        background: white;
-        padding: 10px;
-        border-radius: 6px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    .risk-category { 
+        font-weight: bold; 
+        padding: 2px 8px; 
+        border-radius: 3px; 
+        color: white; 
     }
+    .risk-high { background-color: #dc3545; }
+    .risk-medium { background-color: #fd7e14; }
+    .risk-low { background-color: #28a745; }
     
-    .legend-item {
-        display: flex;
-        align-items: center;
-        margin: 5px 0;
+    .risk-info-card {
+        position: relative;
+        border-left: 5px solid;
     }
+    .risk-info-card.low { border-color: #28a745; }
+    .risk-info-card.medium { border-color: #fd7e14; }
+    .risk-info-card.high { border-color: #dc3545; }
     
-    .legend-color {
-        width: 20px;
-        height: 20px;
-        border-radius: 3px;
-        margin-right: 8px;
+    .section-card {
+        transition: all 0.3s;
+    }
+    .section-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1)!important;
     }
 </style>
 {% endblock %}
@@ -70,10 +72,6 @@
                         <i class="ti ti-download me-1"></i>
                         Export Analysis
                     </a>
-                    <a href="{{ url_for('report_bp.generate', route_id=route.id, report_type='full') }}" class="btn btn-primary d-none d-sm-inline-block">
-                        <i class="ti ti-file-download me-1"></i>
-                        Generate PDF Report
-                    </a>
                     <a href="{{ url_for('csv_upload_bp.upload_csv') }}" class="btn btn-secondary d-none d-sm-inline-block">
                         <i class="ti ti-upload me-1"></i>
                         Upload New CSV
@@ -83,229 +81,6 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initMap" async defer></script>
-<script>
-function initMap() {
-    const mapData = {{ map_data|tojson }};
-    const originalPoints = {{ data.original_points|tojson if data.original_points else '[]' }};
-    const filteredPoints = {{ data.filtered_points|tojson if data.filtered_points else '[]' }};
-    
-    // Initialize the map
-    if (filteredPoints.length === 0) {
-        document.getElementById('map').innerHTML = '<div class="d-flex justify-content-center align-items-center h-100"><div class="text-muted">No route data to display</div></div>';
-        return;
-    }
-    
-    const map = new google.maps.Map(document.getElementById("map"), {
-        zoom: 10,
-        center: { lat: filteredPoints[0][0], lng: filteredPoints[0][1] },
-        mapTypeId: "roadmap"
-    });
-    
-    // Create bounds object
-    const bounds = new google.maps.LatLngBounds();
-    
-    // Draw filtered route (analyzed points)
-    const filteredPath = new google.maps.Polyline({
-        path: filteredPoints.map(p => ({ lat: p[0], lng: p[1] })),
-        geodesic: true,
-        strokeColor: "#1E88E5",
-        strokeOpacity: 1.0,
-        strokeWeight: 4,
-        zIndex: 10
-    });
-    
-    filteredPath.setMap(map);
-    
-    // Add filtered points to bounds
-    filteredPoints.forEach(point => {
-        bounds.extend({lat: point[0], lng: point[1]});
-    });
-    
-    // Draw original route (all points) in a lighter color
-    if (originalPoints.length > 0) {
-        const originalPath = new google.maps.Polyline({
-            path: originalPoints.map(p => ({ lat: p[0], lng: p[1] })),
-            geodesic: true,
-            strokeColor: "#CCCCCC",
-            strokeOpacity: 0.6,
-            strokeWeight: 2,
-            zIndex: 1
-        });
-        
-        originalPath.setMap(map);
-        
-        // Add info window for original path
-        const originalInfoWindow = new google.maps.InfoWindow({
-            content: `<div><strong>Original CSV Data</strong><br>Total points: ${originalPoints.length}</div>`
-        });
-        
-        originalPath.addListener('click', (e) => {
-            originalInfoWindow.setPosition(e.latLng);
-            originalInfoWindow.open(map);
-        });
-    }
-    
-    // Draw risk segments if available
-    if (mapData.risk_segments && mapData.risk_segments.length > 0) {
-        mapData.risk_segments.forEach(segment => {
-            const segmentPath = new google.maps.Polyline({
-                path: segment.path,
-                geodesic: true,
-                strokeColor: segment.color,
-                strokeOpacity: 1.0,
-                strokeWeight: 6,
-                zIndex: 5
-            });
-            
-            segmentPath.setMap(map);
-            
-            // Add click listener for risk info
-            segmentPath.addListener('click', (e) => {
-                const infoWindow = new google.maps.InfoWindow({
-                    content: `<div><strong>Risk Level: ${segment.risk_level}</strong><br>Risk Score: ${segment.risk_score.toFixed(1)}</div>`,
-                    position: e.latLng
-                });
-                infoWindow.open(map);
-            });
-        });
-    }
-    
-    // Add markers for sharp turns
-    if (mapData.sharp_turns && mapData.sharp_turns.length > 0) {
-        mapData.sharp_turns.forEach((turn, index) => {
-            const isBlindSpot = turn.angle > 70;
-            
-            const marker = new google.maps.Marker({
-                position: { lat: turn.lat, lng: turn.lng },
-                map: map,
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    fillColor: isBlindSpot ? '#DC3545' : '#FFC107',
-                    fillOpacity: 0.8,
-                    strokeColor: '#FFFFFF',
-                    strokeWeight: 2,
-                    scale: isBlindSpot ? 12 : 8
-                },
-                title: `${isBlindSpot ? 'Blind Spot' : 'Sharp Turn'}: ${turn.angle}°`,
-                zIndex: 15
-            });
-            
-            // Add info window
-            const infoWindow = new google.maps.InfoWindow({
-                content: `
-                    <div>
-                        <strong>${isBlindSpot ? 'BLIND SPOT' : 'Sharp Turn'}</strong><br>
-                        Angle: ${turn.angle}°<br>
-                        Location: ${turn.lat.toFixed(6)}, ${turn.lng.toFixed(6)}<br>
-                        ${isBlindSpot ? '<span style="color: red;">⚠️ Extreme Caution Required</span>' : '⚠️ Caution Required'}
-                    </div>
-                `
-            });
-            
-            marker.addListener('click', () => {
-                infoWindow.open(map, marker);
-            });
-        });
-    }
-    
-    // Add start and end markers
-    if (filteredPoints.length > 0) {
-        // Start marker (analysis bounds start)
-        new google.maps.Marker({
-            position: { lat: filteredPoints[0][0], lng: filteredPoints[0][1] },
-            map: map,
-            icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                fillColor: '#28A745',
-                fillOpacity: 1.0,
-                strokeColor: '#FFFFFF',
-                strokeWeight: 2,
-                scale: 10
-            },
-            title: "Analysis Start Point",
-            zIndex: 20
-        });
-        
-        // End marker (analysis bounds end)
-        new google.maps.Marker({
-            position: { lat: filteredPoints[filteredPoints.length - 1][0], lng: filteredPoints[filteredPoints.length - 1][1] },
-            map: map,
-            icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                fillColor: '#DC3545',
-                fillOpacity: 1.0,
-                strokeColor: '#FFFFFF',
-                strokeWeight: 2,
-                scale: 10
-            },
-            title: "Analysis End Point",
-            zIndex: 20
-        });
-    }
-    
-    // Fit map to show all analyzed points
-    if (!bounds.isEmpty()) {
-        map.fitBounds(bounds);
-        
-        // Ensure minimum zoom level
-        google.maps.event.addListenerOnce(map, 'bounds_changed', () => {
-            if (map.getZoom() > 15) {
-                map.setZoom(15);
-            }
-        });
-    }
-    
-    // Add legend to map
-    const legend = document.createElement('div');
-    legend.className = 'map-legend';
-    legend.style.cssText = `
-        background: white;
-        padding: 10px;
-        margin: 10px;
-        border-radius: 6px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        font-size: 12px;
-    `;
-    
-    legend.innerHTML = `
-        <div><strong>Map Legend</strong></div>
-        <div style="margin-top: 5px;">
-            <div style="display: flex; align-items: center; margin: 3px 0;">
-                <div style="width: 16px; height: 3px; background-color: #1E88E5; margin-right: 5px;"></div>
-                <span>Analyzed Route</span>
-            </div>
-            <div style="display: flex; align-items: center; margin: 3px 0;">
-                <div style="width: 16px; height: 2px; background-color: #CCCCCC; margin-right: 5px;"></div>
-                <span>Original Data</span>
-            </div>
-            <div style="display: flex; align-items: center; margin: 3px 0;">
-                <div style="width: 12px; height: 12px; background-color: #DC3545; border-radius: 50%; margin-right: 5px;"></div>
-                <span>Blind Spots</span>
-            </div>
-            <div style="display: flex; align-items: center; margin: 3px 0;">
-                <div style="width: 10px; height: 10px; background-color: #FFC107; border-radius: 50%; margin-right: 5px;"></div>
-                <span>Sharp Turns</span>
-            </div>
-        </div>
-    `;
-    
-    map.controls[google.maps.ControlPosition.TOP_RIGHT].push(legend);
-}
-
-// Tab functionality
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Bootstrap tabs if not already initialized
-    const tabTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tab"]'));
-    const tabList = tabTriggerList.map(function (tabTriggerEl) {
-        return new bootstrap.Tab(tabTriggerEl);
-    });
-});
-</script>
-{% endblock %}
 {% endblock %}
 
 {% block content %}
@@ -410,7 +185,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="row">
                         <!-- Risk Summary -->
                         <div class="col-md-6">
-                            <div class="card">
+                            <div class="card section-card">
                                 <div class="card-header">
                                     <h4><i class="ti ti-chart-bar me-2 text-danger"></i>Risk Level Distribution</h4>
                                 </div>
@@ -456,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         <!-- Sharp Turns Analysis -->
                         <div class="col-md-6">
-                            <div class="card">
+                            <div class="card section-card">
                                 <div class="card-header">
                                     <h4><i class="ti ti-route me-2 text-warning"></i>Sharp Turns Analysis</h4>
                                 </div>
@@ -497,6 +272,47 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Risk Segments Detail -->
+                        <div class="col-md-12 mt-3">
+                            <div class="card section-card">
+                                <div class="card-header">
+                                    <h4><i class="ti ti-alert-triangle me-2 text-orange"></i>Risk Segments Detail</h4>
+                                </div>
+                                <div class="card-body">
+                                    {% if data.risk_segments %}
+                                        {% for segment in data.risk_segments %}
+                                        <div class="risk-info-card card mb-2 p-2 {% if segment.risk_level == 'HIGH' %}high{% elif segment.risk_level == 'MEDIUM' %}medium{% else %}low{% endif %}">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <span class="risk-category {% if segment.risk_level == 'HIGH' %}risk-high{% elif segment.risk_level == 'MEDIUM' %}risk-medium{% else %}risk-low{% endif %}">
+                                                        {{ segment.risk_level }}
+                                                    </span>
+                                                    <span class="ms-2">
+                                                        Score: {{ segment.risk_score|round(1) if segment.risk_score else 0 }}
+                                                    </span>
+                                                </div>
+                                                <small>{{ segment.distance|round(1) if segment.distance else 0 }}m segment</small>
+                                            </div>
+                                            
+                                            {% if segment.reasons %}
+                                            <div class="mt-2">
+                                                <small class="text-muted">Risk factors:</small>
+                                                <div class="mt-1">
+                                                    {% for reason in segment.reasons %}
+                                                    <span class="badge bg-blue-lt me-1">{{ reason }}</span>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="text-center text-muted">No risk segments identified</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -506,7 +322,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="card">
+                            <div class="card section-card">
                                 <div class="card-header">
                                     <h4>Vehicle Requirements</h4>
                                 </div>
@@ -551,7 +367,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         
                         <div class="col-md-6">
-                            <div class="card">
+                            <div class="card section-card">
                                 <div class="card-header">
                                     <h4>Speed Limits by Vehicle Type</h4>
                                 </div>
@@ -616,7 +432,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     <div class="row">
                         <div class="col-md-4">
-                            <div class="card">
+                            <div class="card section-card">
                                 <div class="card-header">
                                     <h4><i class="ti ti-building-hospital text-green me-2"></i>Hospitals</h4>
                                 </div>
@@ -646,7 +462,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         
                         <div class="col-md-4">
-                            <div class="card">
+                            <div class="card section-card">
                                 <div class="card-header">
                                     <h4><i class="ti ti-shield text-blue me-2"></i>Police Stations</h4>
                                 </div>
@@ -676,7 +492,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         
                         <div class="col-md-4">
-                            <div class="card">
+                            <div class="card section-card">
                                 <div class="card-header">
                                     <h4><i class="ti ti-gas-station text-yellow me-2"></i>Fuel Stations</h4>
                                 </div>
@@ -713,16 +529,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="card">
+                            <div class="card section-card">
                                 <div class="card-header">
                                     <h4><i class="ti ti-leaf text-green me-2"></i>Environmental Impact</h4>
                                 </div>
                                 <div class="card-body">
                                     {% if data.environmental and data.environmental.carbon_footprint %}
                                         <div class="text-center">
-                                            <div class="h2 text-danger">{{ data.environmental.carbon_footprint.co2_kg }} kg</div>
+                                            <div class="h2 text-danger">{{ data.environmental.carbon_footprint.total_co2_kg or 0 }} kg</div>
                                             <div class="text-muted">Estimated CO₂ emissions</div>
-                                            <small class="text-muted">for {{ data.environmental.carbon_footprint.distance_km|round(1) }} km journey</small>
+                                            <small class="text-muted">{{ data.environmental.carbon_footprint.per_km or 0 }} kg/km</small>
                                         </div>
                                     {% else %}
                                         <div class="text-center text-muted">Carbon footprint data not available</div>
@@ -739,7 +555,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         
                         <div class="col-md-6">
-                            <div class="card">
+                            <div class="card section-card">
                                 <div class="card-header">
                                     <h4><i class="ti ti-cloud text-blue me-2"></i>Weather Conditions</h4>
                                 </div>
@@ -769,7 +585,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="card">
+                            <div class="card section-card">
                                 <div class="card-header">
                                     <h4>Coordinate Points Sample</h4>
                                 </div>
@@ -806,7 +622,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         
                         <div class="col-md-6">
-                            <div class="card">
+                            <div class="card section-card">
                                 <div class="card-header">
                                     <h4>Analysis Statistics</h4>
                                 </div>
@@ -855,28 +671,187 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">Interactive Route Map</h3>
-        <div class="card-actions">
-            <div class="map-controls d-none d-md-block">
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #1E88E5;"></div>
-                    <small>Route Path</small>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #dc3545;"></div>
-                    <small>High Risk</small>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #fd7e14;"></div>
-                    <small>Medium Risk</small>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #28a745;"></div>
-                    <small>Low Risk</small>
-                </div>
-            </div>
-        </div>
     </div>
     <div class="card-body p-0">
         <div id="map" style="height: 500px; width: 100%;"></div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initMap" async defer></script>
+<script>
+function initMap() {
+    const mapData = {{ map_data|tojson }};
+    const originalPoints = {{ data.original_points|tojson if data.original_points else '[]' }};
+    const filteredPoints = {{ data.filtered_points|tojson if data.filtered_points else '[]' }};
+    
+    // Initialize the map
+    if (filteredPoints.length === 0) {
+        document.getElementById('map').innerHTML = '<div class="d-flex justify-content-center align-items-center h-100"><div class="text-muted">No route data to display</div></div>';
+        return;
+    }
+    
+    const map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 10,
+        center: { lat: filteredPoints[0][0], lng: filteredPoints[0][1] },
+        mapTypeId: "roadmap"
+    });
+    
+    // Create bounds object
+    const bounds = new google.maps.LatLngBounds();
+    
+    // Draw filtered route (analyzed points)
+    const filteredPath = new google.maps.Polyline({
+        path: filteredPoints.map(p => ({ lat: p[0], lng: p[1] })),
+        geodesic: true,
+        strokeColor: "#1E88E5",
+        strokeOpacity: 1.0,
+        strokeWeight: 4,
+        zIndex: 10
+    });
+    
+    filteredPath.setMap(map);
+    
+    // Add filtered points to bounds
+    filteredPoints.forEach(point => {
+        bounds.extend({lat: point[0], lng: point[1]});
+    });
+    
+    // Draw original route (all points) in a lighter color if different
+    if (originalPoints.length > 0 && originalPoints.length !== filteredPoints.length) {
+        const originalPath = new google.maps.Polyline({
+            path: originalPoints.map(p => ({ lat: p[0], lng: p[1] })),
+            geodesic: true,
+            strokeColor: "#CCCCCC",
+            strokeOpacity: 0.6,
+            strokeWeight: 2,
+            zIndex: 1
+        });
+        
+        originalPath.setMap(map);
+    }
+    
+    // Draw risk segments if available
+    if (mapData.risk_segments && mapData.risk_segments.length > 0) {
+        mapData.risk_segments.forEach(segment => {
+            if (segment.path && segment.path.length > 0) {
+                const segmentPath = new google.maps.Polyline({
+                    path: segment.path,
+                    geodesic: true,
+                    strokeColor: segment.color,
+                    strokeOpacity: 1.0,
+                    strokeWeight: 6,
+                    zIndex: 5
+                });
+                
+                segmentPath.setMap(map);
+                
+                // Add click listener for risk info
+                segmentPath.addListener('click', (e) => {
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: `<div><strong>Risk Level: ${segment.risk_level}</strong><br>Risk Score: ${segment.risk_score.toFixed(1)}</div>`,
+                        position: e.latLng
+                    });
+                    infoWindow.open(map);
+                });
+            }
+        });
+    }
+    
+    // Add markers for sharp turns
+    if (mapData.sharp_turns && mapData.sharp_turns.length > 0) {
+        mapData.sharp_turns.forEach((turn, index) => {
+            const isBlindSpot = turn.angle > 70;
+            
+            const marker = new google.maps.Marker({
+                position: { lat: turn.lat, lng: turn.lng },
+                map: map,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: isBlindSpot ? '#DC3545' : '#FFC107',
+                    fillOpacity: 0.8,
+                    strokeColor: '#FFFFFF',
+                    strokeWeight: 2,
+                    scale: isBlindSpot ? 12 : 8
+                },
+                title: `${isBlindSpot ? 'Blind Spot' : 'Sharp Turn'}: ${turn.angle}°`,
+                zIndex: 15
+            });
+            
+            // Add info window
+            const infoWindow = new google.maps.InfoWindow({
+                content: `
+                    <div>
+                        <strong>${isBlindSpot ? 'BLIND SPOT' : 'Sharp Turn'}</strong><br>
+                        Angle: ${turn.angle}°<br>
+                        Location: ${turn.lat.toFixed(6)}, ${turn.lng.toFixed(6)}<br>
+                        ${isBlindSpot ? '<span style="color: red;">⚠️ Extreme Caution Required</span>' : '⚠️ Caution Required'}
+                    </div>
+                `
+            });
+            
+            marker.addListener('click', () => {
+                infoWindow.open(map, marker);
+            });
+        });
+    }
+    
+    // Add start and end markers
+    if (filteredPoints.length > 0) {
+        // Start marker
+        new google.maps.Marker({
+            position: { lat: filteredPoints[0][0], lng: filteredPoints[0][1] },
+            map: map,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: '#28A745',
+                fillOpacity: 1.0,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 2,
+                scale: 10
+            },
+            title: "Analysis Start Point",
+            zIndex: 20
+        });
+        
+        // End marker
+        new google.maps.Marker({
+            position: { lat: filteredPoints[filteredPoints.length - 1][0], lng: filteredPoints[filteredPoints.length - 1][1] },
+            map: map,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: '#DC3545',
+                fillOpacity: 1.0,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 2,
+                scale: 10
+            },
+            title: "Analysis End Point",
+            zIndex: 20
+        });
+    }
+    
+    // Fit map to show all analyzed points
+    if (!bounds.isEmpty()) {
+        map.fitBounds(bounds);
+        
+        // Ensure minimum zoom level
+        google.maps.event.addListenerOnce(map, 'bounds_changed', () => {
+            if (map.getZoom() > 15) {
+                map.setZoom(15);
+            }
+        });
+    }
+}
+
+// Tab functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tabs
+    const tabTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tab"]'));
+    const tabList = tabTriggerList.map(function (tabTriggerEl) {
+        return new bootstrap.Tab(tabTriggerEl);
+    });
+});
+</script>
+{% endblock %}

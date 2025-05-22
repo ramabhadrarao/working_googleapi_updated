@@ -126,23 +126,3 @@ def change_password():
             flash('Invalid current password.', 'danger')
     
     return render_template('auth/change_password.html', form=form, title='Change Password')
-
-# Route: Profile
-@auth.route('/profile')
-@login_required
-def profile():
-    """Display user profile."""
-    # Get user statistics
-    total_routes = current_user.routes.count()
-    total_reports = current_user.reports.count()
-    
-    # Get recent activity
-    recent_routes = current_user.routes.order_by(Route.created_at.desc()).limit(5).all()
-    recent_reports = current_user.reports.order_by(Report.created_at.desc()).limit(5).all()
-    
-    return render_template('auth/profile.html', 
-                         title='My Profile',
-                         total_routes=total_routes,
-                         total_reports=total_reports,
-                         recent_routes=recent_routes,
-                         recent_reports=recent_reports)

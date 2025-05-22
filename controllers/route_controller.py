@@ -52,9 +52,10 @@ class RouteForm(FlaskForm):
     
     submit = SubmitField('Analyze Route')
     
-    def validate(self):
+    def validate(self, *args, **kwargs):
         """Custom validation to ensure either address or coordinates are provided."""
-        if not super().validate():
+        # First, run the parent class's validate method with all arguments
+        if not super().validate(*args, **kwargs):
             return False
             
         if self.input_type.data == 'address':
@@ -67,7 +68,7 @@ class RouteForm(FlaskForm):
                 return False
                 
         return True
-
+    
 # Helper functions
 def get_gmaps_client():
     """Get a Google Maps client instance."""

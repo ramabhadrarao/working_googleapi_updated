@@ -1,0 +1,819 @@
+<!-- templates/csv_upload/upload.html - COMPLETE OPTIMIZED VERSION -->
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .drag-and-drop {
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        background-color: #f8f9fa;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .drag-and-drop:hover,
+    .drag-and-drop.dragover {
+        border-color: #0d6efd;
+        background-color: #e7f3ff;
+    }
+    
+    .coordinates-preview {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .bounds-map {
+        height: 300px;
+        border-radius: 8px;
+        margin-top: 15px;
+    }
+    
+    .csv-stats {
+        background-color: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .progress-container {
+        display: none;
+        margin: 20px 0;
+    }
+    
+    .coordinate-input {
+        background-color: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 12px;
+        margin: 10px 0;
+    }
+    
+    .processing-options {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .processing-estimate {
+        font-weight: bold;
+        padding: 8px 12px;
+        border-radius: 4px;
+        display: inline-block;
+        margin-top: 10px;
+    }
+    
+    .estimate-fast { background-color: #d1edff; color: #0969da; }
+    .estimate-medium { background-color: #fff3cd; color: #856404; }
+    .estimate-slow { background-color: #f8d7da; color: #721c24; }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <div class="page-pretitle">
+                    CSV Route Analysis
+                </div>
+                <h2 class="page-title">
+                    Upload & Analyze CSV Route Data
+                </h2>
+            </div>
+            <div class="col-auto ms-auto">
+                <div class="btn-list">
+                    <a href="{{ url_for('csv_upload_bp.list_csv_routes') }}" class="btn btn-outline-primary d-none d-sm-inline-block">
+                        <i class="ti ti-list me-1"></i>
+                        My CSV Routes
+                    </a>
+                    <a href="{{ url_for('route_bp.index') }}" class="btn btn-secondary d-none d-sm-inline-block">
+                        <i class="ti ti-map me-1"></i>
+                        Regular Route Analysis
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="ti ti-upload me-2"></i>
+                    Upload CSV Route Data
+                </h3>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data" id="csvUploadForm">
+                    {{ form.csrf_token }}
+                    
+                    <!-- File Upload Section -->
+                    <div class="mb-4">
+                        <label class="form-label">CSV File with Latitude/Longitude Data</label>
+                        <div class="drag-and-drop" id="dragDropArea">
+                            <div class="drag-drop-content">
+                                <i class="ti ti-cloud-upload" style="font-size: 3rem; color: #6c757d;"></i>
+                                <h4>Drag & Drop CSV File Here</h4>
+                                <p class="text-muted">or click to browse files</p>
+                                {{ form.csv_file(class="d-none", id="csvFileInput") }}
+                            </div>
+                        </div>
+                        
+                        {% if form.csv_file.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.csv_file.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="form-text">
+                            Upload a CSV file with latitude and longitude coordinates in the first two columns.
+                            Supported format: lat,lng or latitude,longitude
+                        </div>
+                    </div>
+                    
+                    <!-- CSV Statistics (shown after file selection) -->
+                    <div class="csv-stats" id="csvStats" style="display: none;">
+                        <h5>CSV File Statistics</h5>
+                        <div id="csvStatsContent"></div>
+                    </div>
+                    
+                    <!-- Processing Recommendations -->
+                    <div class="alert alert-info" id="processingRecommendations" style="display: none;">
+                        <div class="d-flex">
+                            <div>
+                                <i class="ti ti-info-circle"></i>
+                            </div>
+                            <div class="ms-2">
+                                <h4 class="alert-title">Processing Recommendations</h4>
+                                <div id="recommendationsContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Processing Options Section -->
+                    <div class="processing-options" id="processingOptions" style="display: none;">
+                        <h5 class="mb-3">
+                            <i class="ti ti-settings me-2"></i>
+                            Processing Options
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Processing Mode</label>
+                                    {{ form.processing_mode(class="form-select", id="processingMode") }}
+                                    <div class="form-text">
+                                        <strong>Fast:</strong> Quick analysis with basic features<br>
+                                        <strong>Standard:</strong> Recommended for most routes<br>
+                                        <strong>Detailed:</strong> Comprehensive analysis (slower)
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Point Limit</label>
+                                    {{ form.max_points(class="form-select", id="maxPoints") }}
+                                    <div class="form-text">
+                                        Higher limits provide more detail but take longer to process.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="processing-estimate" id="processingEstimate">
+                            <i class="ti ti-clock me-1"></i>
+                            <span id="estimateText">Processing time will be calculated after file upload</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Coordinate Bounds Section -->
+                    <div class="coordinate-input">
+                        <h5 class="mb-3">
+                            <i class="ti ti-target me-2"></i>
+                            Analysis Bounds (Filter Coordinates)
+                        </h5>
+                        <p class="form-text mb-3">
+                            Specify the latitude/longitude bounds to filter and analyze only the route segments within this area.
+                        </p>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">From Latitude</label>
+                                    {{ form.from_lat(class="form-control", placeholder="e.g., 28.9497", step="any", id="from_lat") }}
+                                    {% if form.from_lat.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.from_lat.errors %}
+                                                <div>{{ error }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">From Longitude</label>
+                                    {{ form.from_lng(class="form-control", placeholder="e.g., 77.6591", step="any", id="from_lng") }}
+                                    {% if form.from_lng.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.from_lng.errors %}
+                                                <div>{{ error }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">To Latitude</label>
+                                    {{ form.to_lat(class="form-control", placeholder="e.g., 28.9500", step="any", id="to_lat") }}
+                                    {% if form.to_lat.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.to_lat.errors %}
+                                                <div>{{ error }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">To Longitude</label>
+                                    {{ form.to_lng(class="form-control", placeholder="e.g., 77.6600", step="any", id="to_lng") }}
+                                    {% if form.to_lng.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.to_lng.errors %}
+                                                <div>{{ error }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Bounds Preview -->
+                        <div class="alert alert-info" id="boundsPreview" style="display: none;">
+                            <div class="d-flex">
+                                <div>
+                                    <i class="ti ti-info-circle"></i>
+                                </div>
+                                <div class="ms-2">
+                                    <h4 class="alert-title">Filtering Preview</h4>
+                                    <div id="boundsPreviewContent"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Route Configuration -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Route Name (Optional)</label>
+                                {{ form.route_name(class="form-control", placeholder="e.g., My CSV Route Analysis") }}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Vehicle Type</label>
+                                {{ form.vehicle_type(class="form-select") }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="progress-container" id="progressContainer">
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted" id="progressMessage">Analyzing route data...</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <div class="form-footer">
+                        {{ form.submit(class="btn btn-primary w-100", id="submitBtn") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Help Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="ti ti-help me-2"></i>
+                    How to Use CSV Upload
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="steps">
+                    <div class="step-item">
+                        <div class="step-counter">1</div>
+                        <div class="step-body">
+                            <div class="step-title">Prepare CSV File</div>
+                            <div class="step-content">Ensure your CSV has latitude and longitude in the first two columns.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="step-item">
+                        <div class="step-counter">2</div>
+                        <div class="step-body">
+                            <div class="step-title">Upload File</div>
+                            <div class="step-content">Drag and drop or click to select your CSV file.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="step-item">
+                        <div class="step-counter">3</div>
+                        <div class="step-body">
+                            <div class="step-title">Choose Options</div>
+                            <div class="step-content">Select processing mode and set bounds for optimal performance.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="step-item">
+                        <div class="step-counter">4</div>
+                        <div class="step-body">
+                            <div class="step-title">Analyze</div>
+                            <div class="step-content">Get comprehensive route analysis including risk assessment and safety recommendations.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Performance Tips Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="ti ti-rocket me-2"></i>
+                    Performance Tips
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h4 class="alert-title">For Large Files (2000+ points)</h4>
+                    <ul class="mb-0">
+                        <li>Use <strong>"Fast"</strong> processing mode</li>
+                        <li>Set point limit to <strong>500 or less</strong></li>
+                        <li>Use tight bounding box to filter points</li>
+                        <li>Processing may take 2-5 minutes</li>
+                    </ul>
+                </div>
+                
+                <div class="alert alert-success">
+                    <h4 class="alert-title">Best Performance</h4>
+                    <ul class="mb-0">
+                        <li>Files under 1000 points process quickly</li>
+                        <li>Standard mode works well for most routes</li>
+                        <li>Detailed mode for comprehensive analysis</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sample CSV Format Card -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="ti ti-file-text me-2"></i>
+                    CSV Format Example
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="code-block">
+                    <pre><code>latitude,longitude
+28.94966,77.65908
+28.94970,77.65912
+28.94975,77.65918
+28.94980,77.65925
+...</code></pre>
+                </div>
+                
+                <div class="alert alert-warning mt-3">
+                    <i class="ti ti-alert-triangle me-1"></i>
+                    <strong>Requirements:</strong>
+                    <ul class="mb-0">
+                        <li>First column: Latitude (-90 to 90)</li>
+                        <li>Second column: Longitude (-180 to 180)</li>
+                        <li>CSV format with comma separator</li>
+                        <li>Headers optional but recommended</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Processing Modal -->
+<div class="modal fade" id="processingModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Processing CSV Route</h5>
+            </div>
+            <div class="modal-body text-center">
+                <div class="spinner-border mb-3 text-primary" role="status"></div>
+                <h5 id="modalProcessingMessage">Analyzing route data...</h5>
+                <div class="progress mb-3">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="modalProcessingProgress" role="progressbar" style="width: 0%"></div>
+                </div>
+                <p class="text-muted">This may take several minutes for large files. Please do not close this window.</p>
+                <div class="alert alert-info mt-3">
+                    <small>
+                        <strong>Processing Steps:</strong><br>
+                        1. Reading CSV file<br>
+                        2. Filtering coordinates<br>
+                        3. Analyzing route segments<br>
+                        4. Calculating risks and safety metrics<br>
+                        5. Generating final report
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bounds Map Modal -->
+<div class="modal modal-blur fade" id="boundsMapModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Preview Analysis Bounds</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="boundsMap" class="bounds-map"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="showBoundsPreview()">Update Preview</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dragDropArea = document.getElementById('dragDropArea');
+    const fileInput = document.getElementById('csvFileInput');
+    const csvStats = document.getElementById('csvStats');
+    const csvStatsContent = document.getElementById('csvStatsContent');
+    const boundsPreview = document.getElementById('boundsPreview');
+    const boundsPreviewContent = document.getElementById('boundsPreviewContent');
+    const progressContainer = document.getElementById('progressContainer');
+    const submitBtn = document.getElementById('submitBtn');
+    const form = document.getElementById('csvUploadForm');
+    const processingOptions = document.getElementById('processingOptions');
+    const processingRecommendations = document.getElementById('processingRecommendations');
+    
+    let csvData = null;
+    
+    // Drag and drop functionality
+    dragDropArea.addEventListener('click', () => fileInput.click());
+    
+    dragDropArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dragDropArea.classList.add('dragover');
+    });
+    
+    dragDropArea.addEventListener('dragleave', () => {
+        dragDropArea.classList.remove('dragover');
+    });
+    
+    dragDropArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dragDropArea.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            handleFileSelection(files[0]);
+        }
+    });
+    
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileSelection(e.target.files[0]);
+        }
+    });
+    
+    // Handle file selection
+    function handleFileSelection(file) {
+        if (file.name.toLowerCase().endsWith('.csv')) {
+            validateCSVFile(file);
+        } else {
+            showError('Please select a CSV file.');
+        }
+    }
+    
+    // Validate CSV file
+    function validateCSVFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        fetch('/csv-upload/api/validate-csv', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.valid) {
+                showCSVStats(data.stats, file.name);
+                csvData = data.stats;
+                updateBoundsPreview();
+            } else {
+                showError(data.error);
+            }
+        })
+        .catch(error => {
+            showError('Error validating CSV file: ' + error.message);
+        });
+    }
+    
+    // Show CSV statistics and recommendations
+    function showCSVStats(stats, filename) {
+        csvStatsContent.innerHTML = `
+            <div class="row">
+                <div class="col-6">
+                    <strong>File:</strong> ${filename}<br>
+                    <strong>Total Points:</strong> ${stats.total_points.toLocaleString()}
+                </div>
+                <div class="col-6">
+                    <strong>Lat Range:</strong> ${stats.lat_range[0].toFixed(4)} to ${stats.lat_range[1].toFixed(4)}<br>
+                    <strong>Lng Range:</strong> ${stats.lng_range[0].toFixed(4)} to ${stats.lng_range[1].toFixed(4)}
+                </div>
+            </div>
+        `;
+        csvStats.style.display = 'block';
+        
+        // Auto-populate bounds with data range
+        document.getElementById('from_lat').value = stats.lat_range[0].toFixed(6);
+        document.getElementById('from_lng').value = stats.lng_range[0].toFixed(6);
+        document.getElementById('to_lat').value = stats.lat_range[1].toFixed(6);
+        document.getElementById('to_lng').value = stats.lng_range[1].toFixed(6);
+        
+        // Show processing options and recommendations
+        showProcessingRecommendations(stats.total_points);
+        processingOptions.style.display = 'block';
+        
+        updateBoundsPreview();
+        updateProcessingEstimate();
+    }
+    
+    // Show processing recommendations
+    function showProcessingRecommendations(totalPoints) {
+        const recommendationsContent = document.getElementById('recommendationsContent');
+        let recommendations = '';
+        
+        if (totalPoints > 3000) {
+            recommendations = `
+                <strong>Large file detected (${totalPoints.toLocaleString()} points)</strong><br>
+                <div class="mt-2">
+                    <strong>Recommendations:</strong>
+                    <ul class="mb-2">
+                        <li>Use <strong>"Fast"</strong> processing mode</li>
+                        <li>Set point limit to <strong>250-500</strong></li>
+                        <li>Consider tighter bounding box to filter points</li>
+                        <li>Processing may take 2-5 minutes</li>
+                    </ul>
+                </div>
+            `;
+            processingRecommendations.className = 'alert alert-warning';
+            
+            // Auto-adjust settings for large files
+            document.getElementById('processingMode').value = 'fast';
+            document.getElementById('maxPoints').value = '500';
+            
+        } else if (totalPoints > 1000) {
+            recommendations = `
+                <strong>Medium file size (${totalPoints.toLocaleString()} points)</strong><br>
+                <div class="mt-2">
+                    Standard processing mode works well.<br>
+                    <strong>Estimated processing time:</strong> 30-90 seconds
+                </div>
+            `;
+            processingRecommendations.className = 'alert alert-info';
+            
+        } else {
+            recommendations = `
+                <strong>Good file size (${totalPoints.toLocaleString()} points)</strong><br>
+                <div class="mt-2">
+                    All processing modes will work quickly.<br>
+                    <strong>Estimated processing time:</strong> 15-30 seconds
+                </div>
+            `;
+            processingRecommendations.className = 'alert alert-success';
+        }
+        
+        recommendationsContent.innerHTML = recommendations;
+        processingRecommendations.style.display = 'block';
+    }
+    
+    // Update processing time estimate
+    function updateProcessingEstimate() {
+        if (!csvData) return;
+        
+        const mode = document.getElementById('processingMode').value;
+        const maxPoints = document.getElementById('maxPoints').value;
+        const totalPoints = csvData.total_points;
+        
+        let effectivePoints = totalPoints;
+        if (maxPoints !== 'all') {
+            effectivePoints = Math.min(totalPoints, parseInt(maxPoints));
+        }
+        
+        let estimateSeconds = 0;
+        let estimateClass = 'estimate-fast';
+        let estimateText = '';
+        
+        // Calculate estimate based on mode and points
+        if (mode === 'fast') {
+            estimateSeconds = Math.max(15, effectivePoints * 0.02);
+            estimateClass = 'estimate-fast';
+        } else if (mode === 'detailed') {
+            estimateSeconds = Math.max(30, effectivePoints * 0.08);
+            estimateClass = effectivePoints > 1000 ? 'estimate-slow' : 'estimate-medium';
+        } else { // standard
+            estimateSeconds = Math.max(20, effectivePoints * 0.04);
+            estimateClass = effectivePoints > 1500 ? 'estimate-medium' : 'estimate-fast';
+        }
+        
+        // Format estimate text
+        if (estimateSeconds < 60) {
+            estimateText = `~${Math.round(estimateSeconds)} seconds`;
+        } else if (estimateSeconds < 3600) {
+            const minutes = Math.round(estimateSeconds / 60);
+            estimateText = `~${minutes} minute${minutes > 1 ? 's' : ''}`;
+        } else {
+            const hours = Math.floor(estimateSeconds / 3600);
+            const minutes = Math.round((estimateSeconds % 3600) / 60);
+            estimateText = `~${hours}h ${minutes}m`;
+        }
+        
+        const estimateElement = document.getElementById('processingEstimate');
+        const estimateTextElement = document.getElementById('estimateText');
+        
+        estimateElement.className = `processing-estimate ${estimateClass}`;
+        estimateTextElement.textContent = `Processing time: ${estimateText} (${effectivePoints.toLocaleString()} points)`;
+    }
+    
+    // Update bounds preview
+    function updateBoundsPreview() {
+        if (!csvData) return;
+        
+        const fromLat = parseFloat(document.getElementById('from_lat').value);
+        const fromLng = parseFloat(document.getElementById('from_lng').value);
+        const toLat = parseFloat(document.getElementById('to_lat').value);
+        const toLng = parseFloat(document.getElementById('to_lng').value);
+        
+        if (isNaN(fromLat) || isNaN(fromLng) || isNaN(toLat) || isNaN(toLng)) {
+            boundsPreview.style.display = 'none';
+            return;
+        }
+        
+        // Calculate filtering preview
+        const minLat = Math.min(fromLat, toLat);
+        const maxLat = Math.max(fromLat, toLat);
+        const minLng = Math.min(fromLng, toLng);
+        const maxLng = Math.max(fromLng, toLng);
+        
+        const totalPoints = csvData.total_points;
+        
+        // Estimate filtered points
+        const latRange = csvData.lat_range[1] - csvData.lat_range[0];
+        const lngRange = csvData.lng_range[1] - csvData.lng_range[0];
+        
+        const latOverlap = Math.max(0, Math.min(csvData.lat_range[1], maxLat) - Math.max(csvData.lat_range[0], minLat));
+        const lngOverlap = Math.max(0, Math.min(csvData.lng_range[1], maxLng) - Math.max(csvData.lng_range[0], minLng));
+        
+        let filteredCount = totalPoints;
+        if (latRange > 0 && lngRange > 0) {
+            filteredCount = Math.round(totalPoints * (latOverlap / latRange) * (lngOverlap / lngRange));
+        }
+        
+        const percentage = totalPoints > 0 ? (filteredCount / totalPoints * 100).toFixed(1) : 0;
+        
+        boundsPreviewContent.innerHTML = `
+            <strong>Analysis Preview:</strong><br>
+            • Total points in CSV: ${totalPoints.toLocaleString()}<br>
+            • Points within bounds: ~${filteredCount.toLocaleString()} (${percentage}%)<br>
+            • Area: ${(Math.abs(maxLat - minLat) * 111).toFixed(1)} × ${(Math.abs(maxLng - minLng) * 111).toFixed(1)} km
+        `;
+        
+        boundsPreview.style.display = 'block';
+    }
+    
+    // Show error message
+    function showError(message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger alert-dismissible';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        csvStats.style.display = 'none';
+        processingOptions.style.display = 'none';
+        processingRecommendations.style.display = 'none';
+        dragDropArea.after(alertDiv);
+        
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
+    }
+    
+    // Form submission with progress and modal
+    form.addEventListener('submit', function(e) {
+        if (!csvData) {
+            e.preventDefault();
+            showError('Please upload a valid CSV file first.');
+            return;
+        }
+        
+        // Show processing modal for large files
+        if (csvData.total_points > 1000) {
+            $('#processingModal').modal('show');
+            simulateProgress();
+        } else {
+            // Show inline progress for smaller files
+            progressContainer.style.display = 'block';
+        }
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="ti ti-loader2 animate-spin me-1"></i> Processing Route...';
+    });
+    
+    // Simulate progress updates
+    function simulateProgress() {
+        let progress = 0;
+        const progressBar = document.getElementById('modalProcessingProgress');
+        const progressMessage = document.getElementById('modalProcessingMessage');
+        
+        const messages = [
+            'Reading CSV file...',
+            'Filtering coordinates by bounds...',
+            'Optimizing route points...',
+            'Analyzing sharp turns and risks...',
+            'Finding points of interest...',
+            'Calculating safety metrics...',
+            'Generating final report...'
+        ];
+        
+        let messageIndex = 0;
+        
+        const progressInterval = setInterval(() => {
+            progress += Math.random() * 12;
+            if (progress > 95) progress = 95;
+            
+            progressBar.style.width = progress + '%';
+            
+            if (messageIndex < messages.length && progress > (messageIndex + 1) * 14) {
+                progressMessage.textContent = messages[messageIndex];
+                messageIndex++;
+            }
+        }, 1000);
+        
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            clearInterval(progressInterval);
+        });
+    }
+    
+    // Event listeners for dynamic updates
+    document.getElementById('processingMode').addEventListener('change', updateProcessingEstimate);
+    document.getElementById('maxPoints').addEventListener('change', updateProcessingEstimate);
+    
+    // Coordinate input change handlers
+    ['from_lat', 'from_lng', 'to_lat', 'to_lng'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updateBoundsPreview);
+    });
+});
+
+// Show bounds preview function (for modal)
+function showBoundsPreview() {
+    console.log('Show bounds preview on map');
+    // This would initialize a map showing the bounds
+    // Implementation depends on whether you want to add Google Maps here
+}
+</script>
+{% endblock %}

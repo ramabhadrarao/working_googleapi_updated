@@ -54,6 +54,10 @@ def create_app(config_name='default'):
     # Main blueprint for index and other general pages
     from controllers.main_controller import main_bp
     app.register_blueprint(main_bp)
+    # Add this import at the top with other blueprint imports
+    from controllers.csv_upload_controller import csv_upload_bp
+    app.register_blueprint(csv_upload_bp, url_prefix='/csv-upload')
+
     
     # Create all tables
     with app.app_context():

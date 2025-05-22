@@ -1,0 +1,882 @@
+<!-- templates/csv_upload/dashboard.html -->
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .csv-info-badge {
+        background-color: #e3f2fd;
+        color: #1976d2;
+        border: 1px solid #bbdefb;
+    }
+    
+    .filtered-points-info {
+        background-color: #f3e5f5;
+        border-left: 4px solid #9c27b0;
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .point-comparison {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 6px;
+        margin: 10px 0;
+    }
+    
+    .map-controls {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        background: white;
+        padding: 10px;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin: 5px 0;
+    }
+    
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 3px;
+        margin-right: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <div class="page-pretitle">
+                    CSV Route Analysis Results
+                </div>
+                <h2 class="page-title">
+                    {{ route.name }}
+                </h2>
+            </div>
+            <div class="col-auto ms-auto">
+                <div class="btn-list">
+                    <a href="{{ url_for('csv_upload_bp.export_csv_route', route_id=route.id) }}" class="btn btn-success d-none d-sm-inline-block">
+                        <i class="ti ti-download me-1"></i>
+                        Export Analysis
+                    </a>
+                    <a href="{{ url_for('report_bp.generate', route_id=route.id, report_type='full') }}" class="btn btn-primary d-none d-sm-inline-block">
+                        <i class="ti ti-file-download me-1"></i>
+                        Generate PDF Report
+                    </a>
+                    <a href="{{ url_for('csv_upload_bp.upload_csv') }}" class="btn btn-secondary d-none d-sm-inline-block">
+                        <i class="ti ti-upload me-1"></i>
+                        Upload New CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initMap" async defer></script>
+<script>
+function initMap() {
+    const mapData = {{ map_data|tojson }};
+    const originalPoints = {{ data.original_points|tojson if data.original_points else '[]' }};
+    const filteredPoints = {{ data.filtered_points|tojson if data.filtered_points else '[]' }};
+    
+    // Initialize the map
+    if (filteredPoints.length === 0) {
+        document.getElementById('map').innerHTML = '<div class="d-flex justify-content-center align-items-center h-100"><div class="text-muted">No route data to display</div></div>';
+        return;
+    }
+    
+    const map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 10,
+        center: { lat: filteredPoints[0][0], lng: filteredPoints[0][1] },
+        mapTypeId: "roadmap"
+    });
+    
+    // Create bounds object
+    const bounds = new google.maps.LatLngBounds();
+    
+    // Draw filtered route (analyzed points)
+    const filteredPath = new google.maps.Polyline({
+        path: filteredPoints.map(p => ({ lat: p[0], lng: p[1] })),
+        geodesic: true,
+        strokeColor: "#1E88E5",
+        strokeOpacity: 1.0,
+        strokeWeight: 4,
+        zIndex: 10
+    });
+    
+    filteredPath.setMap(map);
+    
+    // Add filtered points to bounds
+    filteredPoints.forEach(point => {
+        bounds.extend({lat: point[0], lng: point[1]});
+    });
+    
+    // Draw original route (all points) in a lighter color
+    if (originalPoints.length > 0) {
+        const originalPath = new google.maps.Polyline({
+            path: originalPoints.map(p => ({ lat: p[0], lng: p[1] })),
+            geodesic: true,
+            strokeColor: "#CCCCCC",
+            strokeOpacity: 0.6,
+            strokeWeight: 2,
+            zIndex: 1
+        });
+        
+        originalPath.setMap(map);
+        
+        // Add info window for original path
+        const originalInfoWindow = new google.maps.InfoWindow({
+            content: `<div><strong>Original CSV Data</strong><br>Total points: ${originalPoints.length}</div>`
+        });
+        
+        originalPath.addListener('click', (e) => {
+            originalInfoWindow.setPosition(e.latLng);
+            originalInfoWindow.open(map);
+        });
+    }
+    
+    // Draw risk segments if available
+    if (mapData.risk_segments && mapData.risk_segments.length > 0) {
+        mapData.risk_segments.forEach(segment => {
+            const segmentPath = new google.maps.Polyline({
+                path: segment.path,
+                geodesic: true,
+                strokeColor: segment.color,
+                strokeOpacity: 1.0,
+                strokeWeight: 6,
+                zIndex: 5
+            });
+            
+            segmentPath.setMap(map);
+            
+            // Add click listener for risk info
+            segmentPath.addListener('click', (e) => {
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `<div><strong>Risk Level: ${segment.risk_level}</strong><br>Risk Score: ${segment.risk_score.toFixed(1)}</div>`,
+                    position: e.latLng
+                });
+                infoWindow.open(map);
+            });
+        });
+    }
+    
+    // Add markers for sharp turns
+    if (mapData.sharp_turns && mapData.sharp_turns.length > 0) {
+        mapData.sharp_turns.forEach((turn, index) => {
+            const isBlindSpot = turn.angle > 70;
+            
+            const marker = new google.maps.Marker({
+                position: { lat: turn.lat, lng: turn.lng },
+                map: map,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: isBlindSpot ? '#DC3545' : '#FFC107',
+                    fillOpacity: 0.8,
+                    strokeColor: '#FFFFFF',
+                    strokeWeight: 2,
+                    scale: isBlindSpot ? 12 : 8
+                },
+                title: `${isBlindSpot ? 'Blind Spot' : 'Sharp Turn'}: ${turn.angle}°`,
+                zIndex: 15
+            });
+            
+            // Add info window
+            const infoWindow = new google.maps.InfoWindow({
+                content: `
+                    <div>
+                        <strong>${isBlindSpot ? 'BLIND SPOT' : 'Sharp Turn'}</strong><br>
+                        Angle: ${turn.angle}°<br>
+                        Location: ${turn.lat.toFixed(6)}, ${turn.lng.toFixed(6)}<br>
+                        ${isBlindSpot ? '<span style="color: red;">⚠️ Extreme Caution Required</span>' : '⚠️ Caution Required'}
+                    </div>
+                `
+            });
+            
+            marker.addListener('click', () => {
+                infoWindow.open(map, marker);
+            });
+        });
+    }
+    
+    // Add start and end markers
+    if (filteredPoints.length > 0) {
+        // Start marker (analysis bounds start)
+        new google.maps.Marker({
+            position: { lat: filteredPoints[0][0], lng: filteredPoints[0][1] },
+            map: map,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: '#28A745',
+                fillOpacity: 1.0,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 2,
+                scale: 10
+            },
+            title: "Analysis Start Point",
+            zIndex: 20
+        });
+        
+        // End marker (analysis bounds end)
+        new google.maps.Marker({
+            position: { lat: filteredPoints[filteredPoints.length - 1][0], lng: filteredPoints[filteredPoints.length - 1][1] },
+            map: map,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: '#DC3545',
+                fillOpacity: 1.0,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 2,
+                scale: 10
+            },
+            title: "Analysis End Point",
+            zIndex: 20
+        });
+    }
+    
+    // Fit map to show all analyzed points
+    if (!bounds.isEmpty()) {
+        map.fitBounds(bounds);
+        
+        // Ensure minimum zoom level
+        google.maps.event.addListenerOnce(map, 'bounds_changed', () => {
+            if (map.getZoom() > 15) {
+                map.setZoom(15);
+            }
+        });
+    }
+    
+    // Add legend to map
+    const legend = document.createElement('div');
+    legend.className = 'map-legend';
+    legend.style.cssText = `
+        background: white;
+        padding: 10px;
+        margin: 10px;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        font-size: 12px;
+    `;
+    
+    legend.innerHTML = `
+        <div><strong>Map Legend</strong></div>
+        <div style="margin-top: 5px;">
+            <div style="display: flex; align-items: center; margin: 3px 0;">
+                <div style="width: 16px; height: 3px; background-color: #1E88E5; margin-right: 5px;"></div>
+                <span>Analyzed Route</span>
+            </div>
+            <div style="display: flex; align-items: center; margin: 3px 0;">
+                <div style="width: 16px; height: 2px; background-color: #CCCCCC; margin-right: 5px;"></div>
+                <span>Original Data</span>
+            </div>
+            <div style="display: flex; align-items: center; margin: 3px 0;">
+                <div style="width: 12px; height: 12px; background-color: #DC3545; border-radius: 50%; margin-right: 5px;"></div>
+                <span>Blind Spots</span>
+            </div>
+            <div style="display: flex; align-items: center; margin: 3px 0;">
+                <div style="width: 10px; height: 10px; background-color: #FFC107; border-radius: 50%; margin-right: 5px;"></div>
+                <span>Sharp Turns</span>
+            </div>
+        </div>
+    `;
+    
+    map.controls[google.maps.ControlPosition.TOP_RIGHT].push(legend);
+}
+
+// Tab functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tabs if not already initialized
+    const tabTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tab"]'));
+    const tabList = tabTriggerList.map(function (tabTriggerEl) {
+        return new bootstrap.Tab(tabTriggerEl);
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}
+
+{% block content %}
+<!-- CSV Route Summary Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title">CSV Route Analysis Summary</h3>
+        <div class="card-actions">
+            <span class="csv-info-badge badge">CSV Upload Analysis</span>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h4>Route Information</h4>
+                <p>
+                    <strong><i class="ti ti-map-pin"></i> Analysis Bounds:</strong><br>
+                    From: {{ route.from_address }}<br>
+                    To: {{ route.to_address }}<br>
+                    <strong><i class="ti ti-ruler"></i> Distance:</strong> {{ data.distance }}<br>
+                    <strong><i class="ti ti-clock"></i> Duration:</strong> {{ data.duration }}
+                    {% if data.adjusted_duration %}
+                        <br><strong><i class="ti ti-truck"></i> Adjusted Duration ({{ data.vehicle_type|replace('_', ' ')|capitalize }}):</strong> {{ data.adjusted_duration }}
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-6">
+                <h4>Data Processing Results</h4>
+                <div class="filtered-points-info">
+                    <div class="point-comparison">
+                        <div>
+                            <i class="ti ti-database text-primary"></i>
+                            <strong>Original CSV Points:</strong>
+                        </div>
+                        <div class="h4 text-primary">{{ data.original_points|length if data.original_points else 0 }}</div>
+                    </div>
+                    <div class="point-comparison">
+                        <div>
+                            <i class="ti ti-filter text-success"></i>
+                            <strong>Analyzed Points:</strong>
+                        </div>
+                        <div class="h4 text-success">{{ data.filtered_points|length if data.filtered_points else 0 }}</div>
+                    </div>
+                    <div class="point-comparison">
+                        <div>
+                            <i class="ti ti-trash text-muted"></i>
+                            <strong>Filtered Out:</strong>
+                        </div>
+                        <div class="h4 text-muted">{{ data.points_filtered or 0 }}</div>
+                    </div>
+                </div>
+                
+                {% if data.filtered_points and data.original_points %}
+                    {% set percentage = ((data.filtered_points|length) / (data.original_points|length) * 100)|round(1) %}
+                    <div class="alert alert-info">
+                        <i class="ti ti-info-circle me-1"></i>
+                        <strong>{{ percentage }}%</strong> of original points were within the specified analysis bounds.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analysis Dashboard -->
+<div class="mb-4">
+    <ul class="nav nav-tabs nav-fill" data-bs-toggle="tabs">
+        <li class="nav-item">
+            <a href="#tabs-risk-analysis" class="nav-link active" data-bs-toggle="tab">
+                <i class="ti ti-alert-triangle me-1"></i>Risk Analysis
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#tabs-regulatory" class="nav-link" data-bs-toggle="tab">
+                <i class="ti ti-license me-1"></i>Regulatory Compliance
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#tabs-emergency" class="nav-link" data-bs-toggle="tab">
+                <i class="ti ti-ambulance me-1"></i>Emergency Preparedness
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#tabs-environmental" class="nav-link" data-bs-toggle="tab">
+                <i class="ti ti-leaf me-1"></i>Environmental
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#tabs-data-view" class="nav-link" data-bs-toggle="tab">
+                <i class="ti ti-table me-1"></i>Data View
+            </a>
+        </li>
+    </ul>
+    
+    <div class="card">
+        <div class="card-body">
+            <div class="tab-content">
+                <!-- Risk Analysis Tab -->
+                <div class="tab-pane active show" id="tabs-risk-analysis">
+                    <h3 class="card-title mb-3">Route Risk Analysis</h3>
+                    
+                    <div class="row">
+                        <!-- Risk Summary -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4><i class="ti ti-chart-bar me-2 text-danger"></i>Risk Level Distribution</h4>
+                                </div>
+                                <div class="card-body">
+                                    {% set high_risk_count = data.risk_segments|selectattr("risk_level", "equalto", "HIGH")|list|length %}
+                                    {% set medium_risk_count = data.risk_segments|selectattr("risk_level", "equalto", "MEDIUM")|list|length %}
+                                    {% set low_risk_count = data.risk_segments|selectattr("risk_level", "equalto", "LOW")|list|length %}
+                                    
+                                    <div class="row text-center">
+                                        <div class="col-4">
+                                            <div class="h1 text-danger">{{ high_risk_count }}</div>
+                                            <div class="text-muted">High Risk</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="h1 text-warning">{{ medium_risk_count }}</div>
+                                            <div class="text-muted">Medium Risk</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="h1 text-success">{{ low_risk_count }}</div>
+                                            <div class="text-muted">Low Risk</div>
+                                        </div>
+                                    </div>
+                                    
+                                    {% if high_risk_count > 0 %}
+                                        <div class="alert alert-danger mt-3">
+                                            <i class="ti ti-alert-triangle me-1"></i>
+                                            <strong>High Risk Alert:</strong> This route contains {{ high_risk_count }} high-risk segment(s) requiring extreme caution.
+                                        </div>
+                                    {% elif medium_risk_count > 0 %}
+                                        <div class="alert alert-warning mt-3">
+                                            <i class="ti ti-alert-circle me-1"></i>
+                                            <strong>Caution:</strong> This route contains {{ medium_risk_count }} medium-risk segment(s).
+                                        </div>
+                                    {% else %}
+                                        <div class="alert alert-success mt-3">
+                                            <i class="ti ti-check-circle me-1"></i>
+                                            <strong>Low Risk Route:</strong> This route is generally safe with normal driving precautions.
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Sharp Turns Analysis -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4><i class="ti ti-route me-2 text-warning"></i>Sharp Turns Analysis</h4>
+                                </div>
+                                <div class="card-body">
+                                    {% set blind_spots = data.sharp_turns|selectattr("angle", "greaterthan", 70)|list if data.sharp_turns else [] %}
+                                    {% set moderate_turns = data.sharp_turns|selectattr("angle", "lessthan", 71)|list if data.sharp_turns else [] %}
+                                    
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <tbody>
+                                                <tr>
+                                                    <td><i class="ti ti-eye-off text-danger me-1"></i>Blind Spots (>70°)</td>
+                                                    <td><span class="badge bg-danger">{{ blind_spots|length }}</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><i class="ti ti-corner-right-up text-warning me-1"></i>Sharp Turns (30-70°)</td>
+                                                    <td><span class="badge bg-warning">{{ moderate_turns|length }}</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><i class="ti ti-route text-info me-1"></i>Total Sharp Turns</td>
+                                                    <td><span class="badge bg-info">{{ data.sharp_turns|length if data.sharp_turns else 0 }}</span></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    {% if data.sharp_turns %}
+                                        <div class="mt-3">
+                                            <h6>Most Critical Turns:</h6>
+                                            {% for turn in data.sharp_turns|sort(attribute='angle', reverse=true)[:3] %}
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <small>{{ turn.lat|round(4) }}, {{ turn.lng|round(4) }}</small>
+                                                    <span class="badge bg-{% if turn.angle > 70 %}danger{% elif turn.angle > 50 %}warning{% else %}info{% endif %}">{{ turn.angle }}°</span>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Regulatory Compliance Tab -->
+                <div class="tab-pane" id="tabs-regulatory">
+                    <h3 class="card-title mb-3">Regulatory Compliance</h3>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4>Vehicle Requirements</h4>
+                                </div>
+                                <div class="card-body">
+                                    {% if data.compliance and data.compliance.vehicle %}
+                                        <div class="mb-3">
+                                            <span class="badge {% if data.compliance.vehicle.compliant %}bg-success{% else %}bg-danger{% endif %} mb-2">
+                                                {% if data.compliance.vehicle.compliant %}Compliant{% else %}Non-Compliant{% endif %}
+                                            </span>
+                                        </div>
+                                        
+                                        {% if data.compliance.vehicle.requirements %}
+                                            <div class="list-group list-group-flush">
+                                                {% for req in data.compliance.vehicle.requirements[:5] %}
+                                                    <div class="list-group-item px-0">
+                                                        <div class="d-flex align-items-center">
+                                                            <div class="me-2">
+                                                                {% if req.mandatory %}
+                                                                    <i class="ti ti-alert-circle text-danger"></i>
+                                                                {% else %}
+                                                                    <i class="ti ti-info-circle text-info"></i>
+                                                                {% endif %}
+                                                            </div>
+                                                            <div>
+                                                                <div class="font-weight-medium">{{ req.description }}</div>
+                                                                <small class="text-muted">
+                                                                    {% if req.mandatory %}Required{% else %}Recommended{% endif %}
+                                                                </small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="text-center text-muted">
+                                            No compliance data available
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4>Speed Limits by Vehicle Type</h4>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Road Type</th>
+                                                    <th>Speed Limit</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td>National Highway</td>
+                                                    <td>
+                                                        {% if data.vehicle_type == 'heavy_truck' or data.vehicle_type == 'tanker' %}
+                                                            <span class="badge bg-blue">60 km/h</span>
+                                                        {% elif data.vehicle_type == 'medium_truck' or data.vehicle_type == 'bus' %}
+                                                            <span class="badge bg-blue">70 km/h</span>
+                                                        {% else %}
+                                                            <span class="badge bg-blue">80 km/h</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Urban Roads</td>
+                                                    <td>
+                                                        {% if data.vehicle_type == 'heavy_truck' or data.vehicle_type == 'tanker' %}
+                                                            <span class="badge bg-blue">45 km/h</span>
+                                                        {% elif data.vehicle_type == 'medium_truck' or data.vehicle_type == 'bus' %}
+                                                            <span class="badge bg-blue">50 km/h</span>
+                                                        {% else %}
+                                                            <span class="badge bg-blue">60 km/h</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>School Zones</td>
+                                                    <td>
+                                                        {% if data.vehicle_type == 'heavy_truck' or data.vehicle_type == 'tanker' %}
+                                                            <span class="badge bg-red">30 km/h</span>
+                                                        {% elif data.vehicle_type == 'medium_truck' or data.vehicle_type == 'bus' %}
+                                                            <span class="badge bg-red">35 km/h</span>
+                                                        {% else %}
+                                                            <span class="badge bg-red">40 km/h</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Emergency Preparedness Tab -->
+                <div class="tab-pane" id="tabs-emergency">
+                    <h3 class="card-title mb-3">Emergency Preparedness</h3>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4><i class="ti ti-building-hospital text-green me-2"></i>Hospitals</h4>
+                                </div>
+                                <div class="card-body">
+                                    {% if data.hospitals %}
+                                        <div class="h2 text-green text-center">{{ data.hospitals|length }}</div>
+                                        <div class="text-center text-muted">hospitals found</div>
+                                        <div class="mt-3">
+                                            {% for name, location in data.hospitals.items()[:3] %}
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="ti ti-building-hospital text-green me-2"></i>
+                                                    <div>
+                                                        <div class="font-weight-medium">{{ name }}</div>
+                                                        <small class="text-muted">{{ location }}</small>
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                            {% if data.hospitals|length > 3 %}
+                                                <small class="text-muted">... and {{ data.hospitals|length - 3 }} more</small>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center text-muted">No hospitals found</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4><i class="ti ti-shield text-blue me-2"></i>Police Stations</h4>
+                                </div>
+                                <div class="card-body">
+                                    {% if data.police_stations %}
+                                        <div class="h2 text-blue text-center">{{ data.police_stations|length }}</div>
+                                        <div class="text-center text-muted">police stations found</div>
+                                        <div class="mt-3">
+                                            {% for name, location in data.police_stations.items()[:3] %}
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="ti ti-shield text-blue me-2"></i>
+                                                    <div>
+                                                        <div class="font-weight-medium">{{ name }}</div>
+                                                        <small class="text-muted">{{ location }}</small>
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                            {% if data.police_stations|length > 3 %}
+                                                <small class="text-muted">... and {{ data.police_stations|length - 3 }} more</small>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center text-muted">No police stations found</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4><i class="ti ti-gas-station text-yellow me-2"></i>Fuel Stations</h4>
+                                </div>
+                                <div class="card-body">
+                                    {% if data.petrol_bunks %}
+                                        <div class="h2 text-yellow text-center">{{ data.petrol_bunks|length }}</div>
+                                        <div class="text-center text-muted">fuel stations found</div>
+                                        <div class="mt-3">
+                                            {% for name, location in data.petrol_bunks.items()[:3] %}
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="ti ti-gas-station text-yellow me-2"></i>
+                                                    <div>
+                                                        <div class="font-weight-medium">{{ name }}</div>
+                                                        <small class="text-muted">{{ location }}</small>
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                            {% if data.petrol_bunks|length > 3 %}
+                                                <small class="text-muted">... and {{ data.petrol_bunks|length - 3 }} more</small>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center text-muted">No fuel stations found</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Environmental Tab -->
+                <div class="tab-pane" id="tabs-environmental">
+                    <h3 class="card-title mb-3">Environmental Analysis</h3>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4><i class="ti ti-leaf text-green me-2"></i>Environmental Impact</h4>
+                                </div>
+                                <div class="card-body">
+                                    {% if data.environmental and data.environmental.carbon_footprint %}
+                                        <div class="text-center">
+                                            <div class="h2 text-danger">{{ data.environmental.carbon_footprint.co2_kg }} kg</div>
+                                            <div class="text-muted">Estimated CO₂ emissions</div>
+                                            <small class="text-muted">for {{ data.environmental.carbon_footprint.distance_km|round(1) }} km journey</small>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center text-muted">Carbon footprint data not available</div>
+                                    {% endif %}
+                                    
+                                    {% if data.environmental and data.environmental.sensitive_areas %}
+                                        <div class="alert alert-warning mt-3">
+                                            <i class="ti ti-alert-triangle me-1"></i>
+                                            Route passes through {{ data.environmental.sensitive_areas|length }} environmentally sensitive area(s).
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4><i class="ti ti-cloud text-blue me-2"></i>Weather Conditions</h4>
+                                </div>
+                                <div class="card-body">
+                                    {% if data.weather %}
+                                        {% for w in data.weather[:3] %}
+                                            <div class="d-flex align-items-center mb-3">
+                                                <img src="https://openweathermap.org/img/wn/{{ w.icon }}@2x.png" style="width:40px;height:40px;" class="me-2">
+                                                <div>
+                                                    <div class="font-weight-medium">{{ w.location }}</div>
+                                                    <div class="text-muted">{{ w.temp }}°C, {{ w.description }}</div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="text-center text-muted">Weather data not available</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Data View Tab -->
+                <div class="tab-pane" id="tabs-data-view">
+                    <h3 class="card-title mb-3">Route Data Overview</h3>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4>Coordinate Points Sample</h4>
+                                </div>
+                                <div class="card-body">
+                                    {% if data.filtered_points %}
+                                        <div class="table-responsive">
+                                            <table class="table table-sm">
+                                                <thead>
+                                                    <tr>
+                                                        <th>#</th>
+                                                        <th>Latitude</th>
+                                                        <th>Longitude</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for point in data.filtered_points[:10] %}
+                                                        <tr>
+                                                            <td>{{ loop.index }}</td>
+                                                            <td>{{ point[0]|round(6) }}</td>
+                                                            <td>{{ point[1]|round(6) }}</td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        {% if data.filtered_points|length > 10 %}
+                                            <small class="text-muted">Showing first 10 of {{ data.filtered_points|length }} points</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="text-center text-muted">No coordinate data available</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h4>Analysis Statistics</h4>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <tbody>
+                                                <tr>
+                                                    <td><i class="ti ti-database me-1"></i>Original Points</td>
+                                                    <td><span class="badge bg-blue">{{ data.original_points|length if data.original_points else 0 }}</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><i class="ti ti-filter me-1"></i>Analyzed Points</td>
+                                                    <td><span class="badge bg-green">{{ data.filtered_points|length if data.filtered_points else 0 }}</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><i class="ti ti-route me-1"></i>Sharp Turns</td>
+                                                    <td><span class="badge bg-warning">{{ data.sharp_turns|length if data.sharp_turns else 0 }}</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><i class="ti ti-eye-off me-1"></i>Blind Spots</td>
+                                                    <td><span class="badge bg-danger">{{ (data.sharp_turns|selectattr("angle", "greaterthan", 70)|list)|length if data.sharp_turns else 0 }}</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><i class="ti ti-mountain me-1"></i>Elevation Points</td>
+                                                    <td><span class="badge bg-info">{{ data.elevation|length if data.elevation else 0 }}</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><i class="ti ti-alert-triangle me-1"></i>Risk Segments</td>
+                                                    <td><span class="badge bg-orange">{{ data.risk_segments|length if data.risk_segments else 0 }}</span></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Route Map -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Interactive Route Map</h3>
+        <div class="card-actions">
+            <div class="map-controls d-none d-md-block">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #1E88E5;"></div>
+                    <small>Route Path</small>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #dc3545;"></div>
+                    <small>High Risk</small>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #fd7e14;"></div>
+                    <small>Medium Risk</small>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #28a745;"></div>
+                    <small>Low Risk</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="map" style="height: 500px; width: 100%;"></div>
+    </div>
+</div>

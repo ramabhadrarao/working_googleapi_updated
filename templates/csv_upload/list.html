@@ -1,0 +1,437 @@
+<!-- templates/csv_upload/list.html -->
+{% extends "base.html" %}
+
+{% block breadcrumb %}
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <div class="page-pretitle">
+                    CSV Route Analysis
+                </div>
+                <h2 class="page-title">
+                    My CSV Routes
+                </h2>
+            </div>
+            <div class="col-auto ms-auto">
+                <div class="btn-list">
+                    <a href="{{ url_for('csv_upload_bp.upload_csv') }}" class="btn btn-primary d-none d-sm-inline-block">
+                        <i class="ti ti-upload me-1"></i>
+                        Upload New CSV
+                    </a>
+                    <a href="{{ url_for('route_bp.index') }}" class="btn btn-secondary d-none d-sm-inline-block">
+                        <i class="ti ti-map me-1"></i>
+                        Regular Route Analysis
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">CSV Route Analysis History</h3>
+        <div class="card-actions">
+            <span class="badge bg-blue-lt">{{ routes|length }} CSV Route{{ 's' if routes|length != 1 else '' }}</span>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if routes %}
+            <div class="table-responsive">
+                <table class="table table-vcenter card-table">
+                    <thead>
+                        <tr>
+                            <th>Route Name</th>
+                            <th>Analysis Bounds</th>
+                            <th>Data Points</th>
+                            <th>Vehicle Type</th>
+                            <th>Risk Level</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for route in routes %}
+                            {% set route_data = route.get_route_data() %}
+                            {% set high_risk_count = route.high_risk_segments or 0 %}
+                            {% set medium_risk_count = route.medium_risk_segments or 0 %}
+                            {% if high_risk_count > 0 %}
+                                {% set risk_level = 'HIGH' %}
+                                {% set risk_color = 'danger' %}
+                            {% elif medium_risk_count > 0 %}
+                                {% set risk_level = 'MEDIUM' %}
+                                {% set risk_color = 'warning' %}
+                            {% else %}
+                                {% set risk_level = 'LOW' %}
+                                {% set risk_color = 'success' %}
+                            {% endif %}
+                            
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <span class="avatar bg-blue-lt text-blue me-3">
+                                            <i class="ti ti-file-spreadsheet"></i>
+                                        </span>
+                                        <div>
+                                            <div class="fw-bold">{{ route.name or 'CSV Route' }}</div>
+                                            <div class="text-muted">
+                                                <small>
+                                                    {% if route_data.filtered_points %}
+                                                        {{ route_data.filtered_points|length }} analyzed points
+                                                    {% endif %}
+                                                    {% if route_data.sharp_turns %}
+                                                        • {{ route_data.sharp_turns|length }} sharp turns
+                                                    {% endif %}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="text-truncate" style="max-width: 200px;">
+                                        <strong>From:</strong> {{ route.from_lat|round(4) }}, {{ route.from_lng|round(4) }}<br>
+                                        <strong>To:</strong> {{ route.to_lat|round(4) }}, {{ route.to_lng|round(4) }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="text-center">
+                                        {% if route_data.original_points and route_data.filtered_points %}
+                                            <div class="h4 text-green">{{ route_data.filtered_points|length }}</div>
+                                            <small class="text-muted">
+                                                of {{ route_data.original_points|length }} total
+                                                <br>
+                                                ({{ ((route_data.filtered_points|length / route_data.original_points|length) * 100)|round(1) }}%)
+                                            </small>
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-azure-lt">
+                                        {{ route.vehicle_type|replace('_', ' ')|capitalize }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ risk_color }}">
+                                        {{ risk_level }}
+                                    </span>
+                                    {% if route.blind_spots_count and route.blind_spots_count > 0 %}
+                                        <br><small class="text-danger">{{ route.blind_spots_count }} blind spot{{ 's' if route.blind_spots_count != 1 else '' }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div>{{ route.created_at.strftime('%Y-%m-%d') }}</div>
+                                    <small class="text-muted">{{ route.created_at.strftime('%H:%M') }}</small>
+                                </td>
+                                <td>
+                                    <div class="btn-list">
+                                        <a href="{{ url_for('csv_upload_bp.view_csv_route', route_id=route.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="ti ti-eye me-1"></i>
+                                            View Analysis
+                                        </a>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                <i class="ti ti-dots-vertical"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ url_for('summary_bp.route_summary', route_id=route.id) }}">
+                                                        <i class="ti ti-file-text me-2"></i>
+                                                        Quick Summary
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ url_for('risk_bp.risk_analysis', route_id=route.id) }}">
+                                                        <i class="ti ti-alert-triangle me-2"></i>
+                                                        Risk Analysis
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ url_for('csv_upload_bp.export_csv_route', route_id=route.id) }}">
+                                                        <i class="ti ti-download me-2"></i>
+                                                        Export CSV
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ url_for('report_bp.generate', route_id=route.id, report_type='full') }}">
+                                                        <i class="ti ti-file-download me-2"></i>
+                                                        Full PDF Report
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ url_for('report_bp.generate', route_id=route.id, report_type='driver_briefing') }}">
+                                                        <i class="ti ti-file-check me-2"></i>
+                                                        Driver Briefing
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <form method="POST" action="{{ url_for('route_bp.delete', route_id=route.id) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this CSV route analysis?')">
+                                                        <button type="submit" class="dropdown-item text-danger">
+                                                            <i class="ti ti-trash me-2"></i>
+                                                            Delete Route
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Statistics Summary -->
+            <div class="row mt-4">
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="subheader">Total CSV Routes</div>
+                                <div class="ms-auto lh-1">
+                                    <div class="dropdown">
+                                        <a class="dropdown-toggle text-muted" href="#" data-bs-toggle="dropdown">View Options</a>
+                                        <div class="dropdown-menu dropdown-menu-end">
+                                            <a class="dropdown-item" href="{{ url_for('csv_upload_bp.upload_csv') }}">Upload New CSV</a>
+                                            <a class="dropdown-item" href="{{ url_for('route_bp.index') }}">Regular Route Analysis</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="h1 mb-3">{{ routes|length }}</div>
+                            <div class="d-flex mb-2">
+                                <div>CSV analyses created</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="subheader">High Risk Routes</div>
+                            </div>
+                            {% set high_risk_csv_routes = routes|selectattr('high_risk_segments')|selectattr('high_risk_segments', 'greaterthan', 0)|list %}
+                            <div class="h1 mb-3 text-danger">{{ high_risk_csv_routes|length }}</div>
+                            <div class="d-flex mb-2">
+                                <div>CSV routes requiring extra caution</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="subheader">Total Data Points</div>
+                            </div>
+                            {% set total_analyzed_points = 0 %}
+                            {% for route in routes %}
+                                {% set route_data = route.get_route_data() %}
+                                {% if route_data.filtered_points %}
+                                    {% set total_analyzed_points = total_analyzed_points + route_data.filtered_points|length %}
+                                {% endif %}
+                            {% endfor %}
+                            <div class="h1 mb-3 text-blue">{{ total_analyzed_points|default(0) }}</div>
+                            <div class="d-flex mb-2">
+                                <div>Coordinate points analyzed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="subheader">Blind Spots Found</div>
+                            </div>
+                            {% set total_blind_spots = routes|sum(attribute='blind_spots_count') %}
+                            <div class="h1 mb-3 text-warning">{{ total_blind_spots or 0 }}</div>
+                            <div class="d-flex mb-2">
+                                <div>Critical attention points</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Comparison Tools -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3 class="card-title">Analysis Tools</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <i class="ti ti-chart-bar text-primary" style="font-size: 2rem;"></i>
+                                    <h4 class="mt-3">Compare Risk Levels</h4>
+                                    <p class="text-muted">Compare risk assessments across your CSV routes.</p>
+                                    <a href="{{ url_for('risk_bp.compare_routes') }}" class="btn btn-primary">
+                                        Compare Routes
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <i class="ti ti-leaf text-success" style="font-size: 2rem;"></i>
+                                    <h4 class="mt-3">Environmental Impact</h4>
+                                    <p class="text-muted">Compare environmental footprint of different routes.</p>
+                                    <a href="{{ url_for('environmental_bp.compare_environmental_impact') }}" class="btn btn-success">
+                                        Environmental Analysis
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <i class="ti ti-file-report text-info" style="font-size: 2rem;"></i>
+                                    <h4 class="mt-3">Bulk Reports</h4>
+                                    <p class="text-muted">Generate reports for multiple CSV routes.</p>
+                                    <button class="btn btn-info" onclick="generateBulkReports()">
+                                        Generate Reports
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        {% else %}
+            <div class="empty">
+                <div class="empty-icon">
+                    <i class="ti ti-file-spreadsheet"></i>
+                </div>
+                <p class="empty-title">No CSV routes analyzed yet</p>
+                <p class="empty-subtitle text-muted">
+                    Upload your CSV files containing latitude/longitude coordinates to get started with route analysis.
+                </p>
+                <div class="empty-action">
+                    <a href="{{ url_for('csv_upload_bp.upload_csv') }}" class="btn btn-primary">
+                        <i class="ti ti-upload me-1"></i>
+                        Upload Your First CSV
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Help Section for First-time Users -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3 class="card-title">Getting Started with CSV Route Analysis</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4>What is CSV Route Analysis?</h4>
+                            <p>
+                                CSV Route Analysis allows you to upload coordinate data from GPS trackers, 
+                                route planners, or any source that provides latitude/longitude points. 
+                                Our system analyzes the route for safety, compliance, and efficiency.
+                            </p>
+                            
+                            <h5>Benefits:</h5>
+                            <ul>
+                                <li>Analyze existing GPS tracks for safety hazards</li>
+                                <li>Import route data from other systems</li>
+                                <li>Filter analysis to specific geographical bounds</li>
+                                <li>Generate comprehensive safety reports</li>
+                                <li>Compare multiple route datasets</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h4>CSV File Requirements</h4>
+                            <div class="alert alert-info">
+                                <h5>Format Requirements:</h5>
+                                <ul class="mb-0">
+                                    <li>First column: Latitude (-90 to 90)</li>
+                                    <li>Second column: Longitude (-180 to 180)</li>
+                                    <li>CSV format with comma separators</li>
+                                    <li>Headers optional but recommended</li>
+                                    <li>Minimum 10 coordinate points</li>
+                                </ul>
+                            </div>
+                            
+                            <h5>Example CSV:</h5>
+                            <pre class="bg-light p-2 rounded"><code>latitude,longitude
+28.94966,77.65908
+28.94970,77.65912
+28.94975,77.65918</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function generateBulkReports() {
+    // This function would handle bulk report generation
+    const selectedRoutes = [];
+    
+    // Get all route IDs (in a real implementation, you'd have checkboxes)
+    {% for route in routes %}
+        selectedRoutes.push({{ route.id }});
+    {% endfor %}
+    
+    if (selectedRoutes.length === 0) {
+        alert('No routes available for bulk report generation.');
+        return;
+    }
+    
+    if (confirm(`Generate PDF reports for ${selectedRoutes.length} CSV route(s)? This may take a few minutes.`)) {
+        // Show loading state
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="ti ti-loader2 animate-spin me-1"></i> Generating...';
+        button.disabled = true;
+        
+        // In a real implementation, you would make AJAX calls to generate reports
+        // For now, we'll simulate the process
+        setTimeout(() => {
+            alert(`Bulk report generation started for ${selectedRoutes.length} routes. You will receive a notification when complete.`);
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 2000);
+    }
+}
+
+// Add some interactive features
+document.addEventListener('DOMContentLoaded', function() {
+    // Add tooltips to risk level badges
+    const riskBadges = document.querySelectorAll('.badge');
+    riskBadges.forEach(badge => {
+        if (badge.textContent.includes('HIGH') || badge.textContent.includes('MEDIUM') || badge.textContent.includes('LOW')) {
+            badge.setAttribute('data-bs-toggle', 'tooltip');
+            badge.setAttribute('title', 'Click route to view detailed risk analysis');
+        }
+    });
+    
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

@@ -56,14 +56,34 @@
                         </a>
                     </li>
                     {% if current_user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('route_bp.index') }}">
-                            <span class="nav-link-icon d-md-none d-lg-inline-block">
-                                <i class="ti ti-map"></i>
-                            </span>
-                            <span class="nav-link-title">New Route</span>
-                        </a>
-                    </li>
+                    
+                    <li class="nav-item dropdown">
+    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+        <span class="nav-link-icon d-md-none d-lg-inline-block">
+            <i class="ti ti-upload"></i>
+        </span>
+        <span class="nav-link-title">Route Analysis</span>
+    </a>
+    <div class="dropdown-menu">
+        <a class="dropdown-item" href="{{ url_for('route_bp.index') }}">
+            <i class="ti ti-map me-2"></i>
+            Regular Route Analysis
+        </a>
+        <a class="dropdown-item" href="{{ url_for('csv_upload_bp.upload_csv') }}">
+            <i class="ti ti-file-spreadsheet me-2"></i>
+            CSV Upload Analysis
+        </a>
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item" href="{{ url_for('route_bp.list_routes') }}">
+            <i class="ti ti-list me-2"></i>
+            My Regular Routes
+        </a>
+        <a class="dropdown-item" href="{{ url_for('csv_upload_bp.list_csv_routes') }}">
+            <i class="ti ti-file-spreadsheet me-2"></i>
+            My CSV Routes
+        </a>
+    </div>
+</li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('route_bp.list_routes') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">

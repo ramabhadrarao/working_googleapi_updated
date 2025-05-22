@@ -16,6 +16,7 @@ from utils.compliance import ComplianceChecker
 from utils.emergency import categorize_emergency_services, find_critical_emergency_points, create_emergency_response_plan
 from utils.environmental import EnvironmentalAnalyzer
 from utils.elevation import get_elevation_data
+from utils.pdf_generator import generate_enhanced_route_report
 
 # Create blueprint
 route_bp = Blueprint('route_bp', __name__)
@@ -682,3 +683,100 @@ def blind_spots(route_id):
         api_key=current_app.config['GOOGLE_MAPS_API_KEY'],
         title=f"Blind Spots: {route.from_address} to {route.to_address}"
     )
+
+@route_bp.route('/enhanced-report/<int:route_id>/<report_type>')
+@login_required
+def generate_enhanced_report(route_id, report_type):
+    """Generate enhanced PDF report with corrected risk analysis and comprehensive maps"""
+    
+    # Validate report type
+    valid_types = ['full', 'summary', 'driver_briefing']
+    if report_type not in valid_types:
+        flash(f"Invalid report type: {report_type}", "danger")
+        return redirect(url_for('route_bp.view', route_id=route_id))
+    
+    # Get the route from database
+    route = Route.query.get_or_404(route_id)
+    
+    # Ensure the route belongs to the current user
+    if route.user_id != current_user.id and not current_user.is_admin():
+        abort(403)  # Forbidden
+    
+    # Get route data
+    route_data = route.get_route_data()
+    
+    if not route_data:
+        flash("Route data not available for report generation.", "danger")
+        return redirect(url_for('route_bp.view', route_id=route_id))
+    
+    # Prepare comprehensive route data for enhanced PDF generation
+    enhanced_route_data = {
+        'from': route.from_address,
+        'to': route.to_address,
+        'distance': route.distance,
+        'duration': route.duration,
+        'vehicle_type': route.vehicle_type,
+        
+        # Extract all data from route_data with proper defaults
+        'sharp_turns': route_data.get('sharp_turns', []),
+        'major_highways': route_data.get('major_highways', []),
+        'petrol_bunks': route_data.get('petrol_bunks', {}),
+        'hospitals': route_data.get('hospitals', {}),
+        'schools': route_data.get('schools', {}),
+        'food_stops': route_data.get('food_stops', {}),
+        'police_stations': route_data.get('police_stations', {}),
+        'elevation': route_data.get('elevation', []),
+        'weather': route_data.get('weather', []),
+        'risk_segments': route_data.get('risk_segments', []),
+        'compliance': route_data.get('compliance', {}),
+        'emergency': route_data.get('emergency', {}),
+        'environmental': route_data.get('environmental', {}),
+        'toll_gates': route_data.get('toll_gates', []),
+        'bridges': route_data.get('bridges', []),
+        
+        # Add route polyline for map generation
+        'route_polyline': json.loads(route.polyline) if route.polyline else []
+    }
+    
+    try:
+        # Get Google Maps API key
+        api_key = current_app.config.get('GOOGLE_MAPS_API_KEY')
+        
+        # Generate the enhanced PDF
+        filename = generate_enhanced_route_report(
+            route_data=enhanced_route_data,
+            report_type=report_type,
+            api_key=api_key
+        )
+        
+        if filename and os.path.exists(filename):
+            # Get file size
+            file_size = os.path.getsize(filename)
+            
+            # Save report in database
+            report = Report(
+                user_id=current_user.id,
+                route_id=route.id,
+                filename=os.path.basename(filename),
+                report_type=f"enhanced_{report_type}",
+                file_size=file_size
+            )
+            
+            db.session.add(report)
+            db.session.commit()
+            
+            # Send file to user
+            return send_file(
+                filename,
+                as_attachment=True,
+                download_name=f"enhanced_route_report_{report_type}_{route_id}.pdf",
+                mimetype='application/pdf'
+            )
+        else:
+            flash("Failed to generate enhanced PDF report. Please try again.", "danger")
+            return redirect(url_for('route_bp.view', route_id=route_id))
+            
+    except Exception as e:
+        current_app.logger.error(f"Error generating enhanced PDF for route {route_id}: {str(e)}")
+        flash(f"Error generating enhanced PDF report: {str(e)}", "danger")
+        return redirect(url_for('route_bp.view', route_id=route_id))

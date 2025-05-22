@@ -21,13 +21,12 @@
         background-image: url('{{ url_for('static', filename='images/end-pin.png') }}');
     }
     
-    .input-type-toggle {
-        margin-bottom: 1.5rem;
-    }
-    
-    /* Initially hide coordinates inputs */
     .coordinates-inputs {
         display: none;
+    }
+    
+    .address-inputs {
+        display: flex;
     }
 </style>
 {% endblock %}
@@ -63,11 +62,11 @@
                     <div class="form-label">Input Type</div>
                     <div class="form-selectgroup">
                         <label class="form-selectgroup-item">
-                            {{ form.input_type(class="form-selectgroup-input input-type-radio", id="input_type_address", value="address", checked=true) }}
+                            {{ form.input_type(class="form-selectgroup-input", id="input_type_address", value="address", checked=true) }}
                             <span class="form-selectgroup-label">Use Address</span>
                         </label>
                         <label class="form-selectgroup-item">
-                            {{ form.input_type(class="form-selectgroup-input input-type-radio", id="input_type_coords", value="coordinates") }}
+                            {{ form.input_type(class="form-selectgroup-input", id="input_type_coords", value="coordinates") }}
                             <span class="form-selectgroup-label">Use Coordinates</span>
                         </label>
                     </div>
@@ -244,150 +243,141 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- Google Maps JS API with Places Library -->
 {% if api_key %}
+<!-- Google Maps JS API with Places Library -->
 <script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&libraries=places&callback=initMap" async defer></script>
-{% endif %}
-
 <script>
-    // Initialize map and autocomplete
+    // Function to initialize map and autocomplete
     function initMap() {
-        console.log("Map initialization started");
-        
         // Initialize autocomplete
         initAutocomplete();
         
         {% if map_data %}
-        // Map initialization code
-        try {
-            const path = {{ map_data.polyline|tojson }};
-            const map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 10,
-                center: { lat: path[0][0], lng: path[0][1] },
-                mapTypeId: 'roadmap',
-                mapTypeControl: true,
-                mapTypeControlOptions: {
-                    style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
-                    position: google.maps.ControlPosition.TOP_RIGHT
-                }
-            });
-    
-            // Draw route path
-            const routePath = new google.maps.Polyline({
-                path: path.map(p => ({ lat: p[0], lng: p[1] })),
-                geodesic: true,
-                strokeColor: "#1E88E5",
-                strokeOpacity: 1.0,
-                strokeWeight: 4
-            });
-            
-            routePath.setMap(map);
-    
-            // Add markers for sharp turns
-            const turns = {{ map_data.sharp_turns|tojson }};
-            turns.forEach(t => {
-                const marker = new google.maps.Marker({
-                    position: { lat: t.lat, lng: t.lng },
-                    map: map,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: '#FFC107',
-                        fillOpacity: 0.8,
-                        strokeColor: '#FF9800',
-                        strokeWeight: 1,
-                        scale: 8
-                    },
-                    title: `Sharp Turn: ${t.angle}°`
-                });
-                
-                // Add a click event for the marker
-                google.maps.event.addListener(marker, 'click', function() {
-                    const infoWindow = new google.maps.InfoWindow({
-                        content: `<div><strong>Sharp Turn</strong><br>Angle: ${t.angle}°<br>Coordinate: ${t.lat.toFixed(4)}, ${t.lng.toFixed(4)}</div>`
-                    });
-                    infoWindow.open(map, marker);
-                });
-            });
-            
-            // Add markers for toll gates
-            {% if map_data.toll_gates %}
-            const tollGates = {{ map_data.toll_gates|tojson }};
-            tollGates.forEach(toll => {
-                const marker = new google.maps.Marker({
-                    position: { lat: toll.lat, lng: toll.lng },
-                    map: map,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: '#9C27B0',
-                        fillOpacity: 0.8,
-                        strokeColor: '#7B1FA2',
-                        strokeWeight: 1,
-                        scale: 8
-                    },
-                    title: `Toll Gate`
-                });
-                
-                // Add a click event for the marker
-                google.maps.event.addListener(marker, 'click', function() {
-                    const infoWindow = new google.maps.InfoWindow({
-                        content: `<div><strong>Toll Gate</strong><br>${toll.name || ''}</div>`
-                    });
-                    infoWindow.open(map, marker);
-                });
-            });
-            {% endif %}
-            
-            // Add markers for bridges
-            {% if map_data.bridges %}
-            const bridges = {{ map_data.bridges|tojson }};
-            bridges.forEach(bridge => {
-                const marker = new google.maps.Marker({
-                    position: { lat: bridge.lat, lng: bridge.lng },
-                    map: map,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: '#4CAF50',
-                        fillOpacity: 0.8,
-                        strokeColor: '#388E3C',
-                        strokeWeight: 1,
-                        scale: 8
-                    },
-                    title: `Bridge`
-                });
-                
-                // Add a click event for the marker
-                google.maps.event.addListener(marker, 'click', function() {
-                    const infoWindow = new google.maps.InfoWindow({
-                        content: `<div><strong>Bridge</strong><br>${bridge.name || ''}</div>`
-                    });
-                    infoWindow.open(map, marker);
-                });
-            });
-            {% endif %}
-            
-            // Add start and end markers
-            if (path.length > 0) {
-                // Start marker
-                new google.maps.Marker({
-                    position: { lat: path[0][0], lng: path[0][1] },
-                    map: map,
-                    icon: "{{ url_for('static', filename='images/start-pin.png') }}",
-                    title: "Start"
-                });
-                
-                // End marker
-                new google.maps.Marker({
-                    position: { lat: path[path.length - 1][0], lng: path[path.length - 1][1] },
-                    map: map,
-                    icon: "{{ url_for('static', filename='images/end-pin.png') }}",
-                    title: "End"
-                });
+        // Initialize the map
+        const path = {{ map_data.polyline|tojson }};
+        const map = new google.maps.Map(document.getElementById("map"), {
+            zoom: 10,
+            center: { lat: path[0][0], lng: path[0][1] },
+            mapTypeId: 'roadmap',
+            mapTypeControl: true,
+            mapTypeControlOptions: {
+                style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                position: google.maps.ControlPosition.TOP_RIGHT
             }
+        });
+
+        // Draw route path
+        const routePath = new google.maps.Polyline({
+            path: path.map(p => ({ lat: p[0], lng: p[1] })),
+            geodesic: true,
+            strokeColor: "#1E88E5",
+            strokeOpacity: 1.0,
+            strokeWeight: 4
+        });
+        
+        routePath.setMap(map);
+
+        // Add markers for sharp turns
+        const turns = {{ map_data.sharp_turns|tojson }};
+        turns.forEach(t => {
+            const marker = new google.maps.Marker({
+                position: { lat: t.lat, lng: t.lng },
+                map: map,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: '#FFC107',
+                    fillOpacity: 0.8,
+                    strokeColor: '#FF9800',
+                    strokeWeight: 1,
+                    scale: 8
+                },
+                title: `Sharp Turn: ${t.angle}°`
+            });
             
-            // Draw risk segments if available
-            {% if map_data.risk_segments %}
-            const riskSegments = {{ map_data.risk_segments|tojson }};
-            riskSegments.forEach(segment => {
+            // Add a click event for the marker
+            google.maps.event.addListener(marker, 'click', function() {
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `<div><strong>Sharp Turn</strong><br>Angle: ${t.angle}°<br>Coordinate: ${t.lat.toFixed(4)}, ${t.lng.toFixed(4)}</div>`
+                });
+                infoWindow.open(map, marker);
+            });
+        });
+        
+        // Add markers for toll gates
+        const tollGates = {{ map_data.toll_gates|tojson if map_data.toll_gates else '[]' }};
+        tollGates.forEach(toll => {
+            const marker = new google.maps.Marker({
+                position: { lat: toll.lat, lng: toll.lng },
+                map: map,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: '#9C27B0',
+                    fillOpacity: 0.8,
+                    strokeColor: '#7B1FA2',
+                    strokeWeight: 1,
+                    scale: 8
+                },
+                title: `Toll Gate`
+            });
+            
+            // Add a click event for the marker
+            google.maps.event.addListener(marker, 'click', function() {
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `<div><strong>Toll Gate</strong><br>${toll.name || ''}</div>`
+                });
+                infoWindow.open(map, marker);
+            });
+        });
+        
+        // Add markers for bridges
+        const bridges = {{ map_data.bridges|tojson if map_data.bridges else '[]' }};
+        bridges.forEach(bridge => {
+            const marker = new google.maps.Marker({
+                position: { lat: bridge.lat, lng: bridge.lng },
+                map: map,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: '#4CAF50',
+                    fillOpacity: 0.8,
+                    strokeColor: '#388E3C',
+                    strokeWeight: 1,
+                    scale: 8
+                },
+                title: `Bridge`
+            });
+            
+            // Add a click event for the marker
+            google.maps.event.addListener(marker, 'click', function() {
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `<div><strong>Bridge</strong><br>${bridge.name || ''}</div>`
+                });
+                infoWindow.open(map, marker);
+            });
+        });
+        
+        // Add start and end markers
+        if (path.length > 0) {
+            // Start marker
+            new google.maps.Marker({
+                position: { lat: path[0][0], lng: path[0][1] },
+                map: map,
+                icon: "{{ url_for('static', filename='images/start-pin.png') }}",
+                title: "Start"
+            });
+            
+            // End marker
+            new google.maps.Marker({
+                position: { lat: path[path.length - 1][0], lng: path[path.length - 1][1] },
+                map: map,
+                icon: "{{ url_for('static', filename='images/end-pin.png') }}",
+                title: "End"
+            });
+        }
+        
+        // Draw risk segments if available
+        {% if map_data.risk_segments %}
+            // Draw risk-colored polylines for each segment
+            {{ map_data.risk_segments|tojson }}.forEach(segment => {
                 const segmentPath = segment.path.map(p => ({ lat: p.lat, lng: p.lng }));
                 
                 const routePath = new google.maps.Polyline({
@@ -409,92 +399,78 @@
                     infoWindow.open(map);
                 });
             });
-            {% endif %}
-        } catch (error) {
-            console.error("Error initializing map:", error);
-        }
+        {% endif %}
         {% endif %}
     }
     
-    // Initialize autocomplete for address fields
+    // Function to initialize autocomplete
     function initAutocomplete() {
-        if (typeof google === 'undefined' || typeof google.maps === 'undefined' || typeof google.maps.places === 'undefined') {
-            console.error("Google Maps Places API not loaded");
-            return;
-        }
+        // Create the autocomplete objects for the address input fields
+        const fromInput = document.getElementById("from_address");
+        const toInput = document.getElementById("to_address");
         
-        console.log("Initializing address autocomplete");
-        
-        try {
-            // Get input elements
-            const fromInput = document.getElementById("from_address");
-            const toInput = document.getElementById("to_address");
+        if (fromInput && toInput) {
+            // Options for the autocomplete
+            const options = {
+                types: ['geocode', 'establishment'], // This allows for both addresses and places
+                fields: ['formatted_address', 'geometry', 'name']
+            };
             
-            if (fromInput) {
-                // Initialize autocomplete for origin
-                const fromAutocomplete = new google.maps.places.Autocomplete(fromInput, {
-                    types: ['geocode', 'establishment']
-                });
-                fromAutocomplete.setFields(['formatted_address', 'geometry', 'name']);
-                console.log("From address autocomplete initialized");
-            } else {
-                console.warn("From address input not found");
-            }
-            
-            if (toInput) {
-                // Initialize autocomplete for destination
-                const toAutocomplete = new google.maps.places.Autocomplete(toInput, {
-                    types: ['geocode', 'establishment']
-                });
-                toAutocomplete.setFields(['formatted_address', 'geometry', 'name']);
-                console.log("To address autocomplete initialized");
-            } else {
-                console.warn("To address input not found");
-            }
-        } catch (error) {
-            console.error("Error setting up autocomplete:", error);
+            // Initialize autocomplete for both inputs
+            const fromAutocomplete = new google.maps.places.Autocomplete(fromInput, options);
+            const toAutocomplete = new google.maps.places.Autocomplete(toInput, options);
         }
     }
-    
-    // Toggle between address and coordinates inputs
+</script>
+{% endif %}
+
+<script>
+    // Handle input type toggle
     document.addEventListener('DOMContentLoaded', function() {
-        console.log("DOM loaded - setting up input toggles");
+        const addressRadios = document.querySelectorAll('input[name="input_type"]');
+        const addressInputs = document.querySelector('.address-inputs');
+        const coordsInputs = document.querySelector('.coordinates-inputs');
         
         // Function to toggle input visibility
-        function toggleInputs() {
-            const addressInputs = document.querySelector('.address-inputs');
-            const coordsInputs = document.querySelector('.coordinates-inputs');
-            const addressRadio = document.querySelector('#input_type_address');
+        function toggleInputType() {
+            const selectedValue = document.querySelector('input[name="input_type"]:checked').value;
             
-            if (!addressInputs || !coordsInputs) {
-                console.error("Input containers not found");
-                return;
-            }
-            
-            if (addressRadio && addressRadio.checked) {
+            if (selectedValue === 'address') {
                 addressInputs.style.display = 'flex';
                 coordsInputs.style.display = 'none';
-                console.log("Address inputs are now visible");
+                
+                // Make address fields required
+                document.getElementById('from_address').setAttribute('required', '');
+                document.getElementById('to_address').setAttribute('required', '');
+                
+                // Make coordinate fields not required
+                document.getElementById('from_lat').removeAttribute('required');
+                document.getElementById('from_lng').removeAttribute('required');
+                document.getElementById('to_lat').removeAttribute('required');
+                document.getElementById('to_lng').removeAttribute('required');
             } else {
                 addressInputs.style.display = 'none';
                 coordsInputs.style.display = 'flex';
-                console.log("Coordinate inputs are now visible");
+                
+                // Make coordinate fields required
+                document.getElementById('from_lat').setAttribute('required', '');
+                document.getElementById('from_lng').setAttribute('required', '');
+                document.getElementById('to_lat').setAttribute('required', '');
+                document.getElementById('to_lng').setAttribute('required', '');
+                
+                // Make address fields not required
+                document.getElementById('from_address').removeAttribute('required');
+                document.getElementById('to_address').removeAttribute('required');
             }
         }
         
         // Add event listeners to radio buttons
-        const inputTypeRadios = document.querySelectorAll('.input-type-radio');
-        if (inputTypeRadios.length > 0) {
-            inputTypeRadios.forEach(radio => {
-                radio.addEventListener('change', toggleInputs);
-                console.log(`Added event listener to ${radio.id}`);
-            });
-        } else {
-            console.error("Radio buttons not found");
-        }
+        addressRadios.forEach(function(radio) {
+            radio.addEventListener('change', toggleInputType);
+        });
         
-        // Initial toggle based on default selection
-        toggleInputs();
+        // Initialize the form state
+        toggleInputType();
     });
 </script>
 {% endblock %}

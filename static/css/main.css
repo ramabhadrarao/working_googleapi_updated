@@ -50,17 +50,98 @@
     margin-bottom: 4rem;
 }
 
-/* Additional styles for route analysis pages */
+/* Additional styles for route analysis pages with improved text styling */
 .risk-high {
-    color: #dc3545;
+    background-color: #dc3545;
+    color: #ffffff;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 4px;
 }
 
 .risk-medium {
-    color: #fd7e14;
+    background-color: #fd7e14;
+    color: #ffffff;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 4px;
 }
 
 .risk-low {
-    color: #28a745;
+    background-color: #28a745;
+    color: #ffffff;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Route information styling */
+.route-info {
+    font-weight: 600;
+}
+
+/* Highway badges */
+.highway-badge {
+    background-color: #3b5998;
+    color: white;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-right: 6px;
+    display: inline-block;
+}
+
+/* Preferred route */
+.preferred-route {
+    background-color: #00c853;
+    color: white;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 4px;
+}
+
+/* Adjusted time for heavy vehicles */
+.adjusted-time {
+    background-color: #d32f2f;
+    color: white;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+/* Summary information */
+.summary-item {
+    font-weight: 600;
+}
+
+.summary-label {
+    color: #555;
+}
+
+.summary-value {
+    color: #222;
+    font-weight: 700;
+}
+
+/* Environmental zone badges */
+.env-zone-badge {
+    background-color: #2e7d32;
+    color: white;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-right: 4px;
+    display: inline-block;
+}
+
+/* Weather information */
+.weather-info {
+    background-color: #1976d2;
+    color: white;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-radius: 4px;
 }
 
 /* Print styles */

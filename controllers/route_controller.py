@@ -8,6 +8,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SelectField, RadioField, FloatField, SubmitField
 from wtforms.validators import DataRequired, Optional, NumberRange
 from models import db, Route
+import math  # Add this import to fix the error
 
 # Import utility modules
 from utils.risk_analysis import calculate_route_risk, get_risk_map_data, get_vehicle_adjusted_time
